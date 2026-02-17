@@ -3,11 +3,15 @@
 import { useState, useEffect } from 'react';
 import { Sun, Moon, LogOut, Settings, User } from 'lucide-react';
 import { useTheme } from '../../../contexts/ThemeContext';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+
 
 export default function Navbar() {
   const [user, setUser] = useState<any>(null);
   const [showProfile, setShowProfile] = useState(false);
   const { theme, toggleTheme } = useTheme();
+  const pathname = usePathname();
 
   useEffect(() => {
     const userData = localStorage.getItem('user');
@@ -41,7 +45,25 @@ export default function Navbar() {
 
             {/* Right Side Actions */}
             <div className="flex items-center space-x-3">
+              {/* <div className="mb-30">
+          <Link
+            href="/settings"
+            className={`
+              w-12 h-12 rounded-xl 
+              flex items-center justify-center
+              transition-all duration-300
 
+              ${pathname === "/settings"
+                ? "bg-indigo-500 text-white shadow-[0_0_20px_#6366f1]"
+                : theme === 'dark'
+                  ? "text-gray-300 hover:bg-gray-700"
+                  : "text-gray-900 hover:bg-gray-200"
+              }
+            `}
+          >
+            <Settings size={22} />
+          </Link>
+        </div> */}
               {/* Theme Toggle */}
               <button
                 onClick={toggleTheme}
@@ -65,7 +87,7 @@ export default function Navbar() {
                   </div>
                   <span className="text-sm font-medium">Admin</span>
                 </button>
-
+       
                 {/* Profile Dropdown */}
                 {showProfile && (
                   <div className={`absolute right-0 mt-2 w-48 rounded-lg shadow-lg ${

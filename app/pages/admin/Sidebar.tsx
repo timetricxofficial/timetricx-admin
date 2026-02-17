@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { LayoutDashboard, Users, Folder, Settings, Calendar } from "lucide-react"
+import { LayoutDashboard, Users, Folder, Settings, Calendar, Camera, Video } from "lucide-react"
 import { useTheme } from "../../../contexts/ThemeContext"
 import { meet } from "googleapis/build/src/apis/meet"
 
@@ -10,7 +10,8 @@ const menu = [
   { name: "Dashboard", icon: LayoutDashboard, path: "/admin/dashboard" },
   { name: "Users", icon: Users, path: "/admin/users" },
   { name: "Projects", icon: Folder, path: "/admin/projects" },
-  { name: "meetings", icon: Calendar , path: "/admin/meetings"}
+  { name: "meetings", icon: Video , path: "/admin/meetings"},
+  { name: "Attendance & Leave", icon: Calendar, path: "/admin/attendanceandLeave" }
 ]
 
 export default function Sidebar() {
@@ -60,17 +61,10 @@ export default function Sidebar() {
         `}
       >
 
-        {/* Logo */}
-        <div className="mt-30 mb-14">
-          <img 
-            src="/Timetricx logo.svg" 
-            alt="Timetricx Admin" 
-            className="w-7 h-auto"
-          />
-        </div>
+        
 
         {/* Menu */}
-        <div className="flex flex-col gap-3 flex-1">
+        <div className="flex flex-col gap-3 mt-30 flex-1">
           {menu.map((item) => {
             const isActive = pathname === item.path
 
@@ -95,27 +89,6 @@ export default function Sidebar() {
               </Link>
             )
           })}
-        </div>
-
-        {/* Settings */}
-        <div className="mb-30">
-          <Link
-            href="/settings"
-            className={`
-              w-12 h-12 rounded-xl 
-              flex items-center justify-center
-              transition-all duration-300
-
-              ${pathname === "/settings"
-                ? "bg-indigo-500 text-white shadow-[0_0_20px_#6366f1]"
-                : theme === 'dark'
-                  ? "text-gray-300 hover:bg-gray-700"
-                  : "text-gray-900 hover:bg-gray-200"
-              }
-            `}
-          >
-            <Settings size={22} />
-          </Link>
         </div>
 
       </div>

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { Search, Plus, Edit, Trash2, Video } from 'lucide-react'
 import { useTheme } from '../../../contexts/ThemeContext'
 import AddMeeting from './components/AddMeeting'
+import EditMeeting from './components/EditMeeting'
 
 interface Meeting {
   _id: string
@@ -25,6 +26,8 @@ export default function AdminMeetingsPage() {
   const [meetings, setMeetings] = useState<Meeting[]>([])
   const [search, setSearch] = useState('')
   const [openAdd, setOpenAdd] = useState(false)
+  const [openEdit, setOpenEdit] = useState(false)
+  const [selectedMeeting, setSelectedMeeting] = useState<Meeting | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -163,6 +166,10 @@ export default function AdminMeetingsPage() {
                 {/* ACTIONS */}
                 <td className="p-3 flex justify-center gap-3">
                   <button
+                    onClick={() => {
+                      setSelectedMeeting(meeting)
+                      setOpenEdit(true)
+                    }}
                     className="text-blue-600 hover:scale-110 transition"
                   >
                     <Edit size={18} />
@@ -196,11 +203,23 @@ export default function AdminMeetingsPage() {
         </table>
       </div>
 
-      {/* MODAL */}
+      {/* ADD MODAL */}
       {openAdd && (
         <AddMeeting
           onClose={() => {
             setOpenAdd(false)
+            getMeetings()
+          }}
+        />
+      )}
+
+      {/* EDIT MODAL */}
+      {openEdit && selectedMeeting && (
+        <EditMeeting
+          meeting={selectedMeeting}
+          onClose={() => {
+            setOpenEdit(false)
+            setSelectedMeeting(null)
             getMeetings()
           }}
         />

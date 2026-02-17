@@ -45,6 +45,7 @@
     "react-icons": "^5.5.0",
     "recharts": "^3.6.0",
     "sharp": "^0.34.5",
+    "sweetalert2": "^11.26.18",
     "tailwind-merge": "^3.4.0",
     "three": "^0.182.0",
     "timestamp": "^0.0.1",
