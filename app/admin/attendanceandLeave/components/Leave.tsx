@@ -16,7 +16,12 @@ interface LeaveData {
   status: 'pending' | 'approved' | 'rejected'
 }
 
-export default function Leave() {
+interface LeaveProps {
+  canEdit?: boolean
+  canApprove?: boolean
+}
+
+export default function Leave({ canEdit = false, canApprove = false }: LeaveProps) {
   const { theme } = useTheme()
 
   const [leaves, setLeaves] = useState<LeaveData[]>([])
@@ -174,14 +179,17 @@ export default function Leave() {
                 <td className="p-3 flex justify-center gap-3">
                   <button
                     onClick={() => setSelected(leave)}
-                    className="text-blue-500 hover:scale-110"
+                    className="text-blue-500 hover:scale-110 cursor-pointer"
                   >
                     <Eye size={18} />
                   </button>
 
                   <button
-                    onClick={() => deleteLeave(leave._id)}
-                    className="text-red-500 hover:scale-110"
+                    onClick={() => canEdit && deleteLeave(leave._id)}
+                    disabled={!canEdit}
+                    className={`${
+                      canEdit ? 'hover:scale-110 cursor-pointer' : 'cursor-not-allowed opacity-30'
+                    } text-red-500`}
                   >
                     <Trash2 size={18} />
                   </button>
@@ -277,8 +285,11 @@ export default function Leave() {
                 <div className="mt-6 space-y-3">
 
                   <button
-                    onClick={() => updateStatus(selected._id, 'approved')}
-                    className="w-full py-2 bg-green-600 hover:bg-green-700 text-white rounded"
+                    onClick={() => canApprove && updateStatus(selected._id, 'approved')}
+                    disabled={!canApprove}
+                    className={`w-full py-2 bg-green-600 hover:bg-green-700 text-white rounded ${
+                      !canApprove ? 'opacity-60 cursor-not-allowed' : ''
+                    }`}
                   >
                     Approve
                   </button>
@@ -287,16 +298,20 @@ export default function Leave() {
                     placeholder="Rejection reason"
                     value={rejectionReason}
                     onChange={(e) => setRejectionReason(e.target.value)}
+                    disabled={!canApprove}
                     className={`w-full p-2 rounded transition-colors ${
                       theme === 'dark'
                         ? 'bg-gray-800 text-white'
                         : 'bg-gray-100 text-gray-900'
-                    }`}
+                    } ${!canApprove ? 'opacity-60 cursor-not-allowed' : ''}`}
                   />
 
                   <button
-                    onClick={() => updateStatus(selected._id, 'rejected')}
-                    className="w-full py-2 bg-red-600 hover:bg-red-700 text-white rounded"
+                    onClick={() => canApprove && updateStatus(selected._id, 'rejected')}
+                    disabled={!canApprove}
+                    className={`w-full py-2 bg-red-600 hover:bg-red-700 text-white rounded ${
+                      !canApprove ? 'opacity-60 cursor-not-allowed' : ''
+                    }`}
                   >
                     Reject
                   </button>

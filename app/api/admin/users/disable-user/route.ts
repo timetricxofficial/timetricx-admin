@@ -24,12 +24,13 @@ export async function PUT(req: NextRequest) {
       )
     }
 
-    user.isActive = false
+    user.isActive = !user.isActive
     await user.save()
 
     return NextResponse.json({
       success: true,
-      message: 'User disabled successfully'
+      message: user.isActive ? 'User enabled successfully' : 'User disabled successfully',
+      isActive: user.isActive
     })
 
   } catch (error) {

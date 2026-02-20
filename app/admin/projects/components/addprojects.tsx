@@ -25,6 +25,23 @@ export default function AddProject({ onClose }: { onClose: () => void }) {
   const [skillQuery, setSkillQuery] = useState('')
   const [skillUsers, setSkillUsers] = useState<any[]>([])
 
+  /* ---------- ROLE SEARCH ---------- */
+  const [roleQuery, setRoleQuery] = useState('')
+  const [roleUsers, setRoleUsers] = useState<any[]>([])
+
+  const workingRoles = [
+    'Frontend Developer',
+    'Backend Developer',
+    'Fullstack Developer',
+    'Graphics Designer',
+    'UI/UX Designer',
+    'DevOps Engineer',
+    'QA Engineer',
+    'Mobile Developer',
+    'Project Manager',
+    'Product Manager'
+  ]
+
   useEffect(() => {
     setShow(true)
   }, [])
@@ -43,6 +60,22 @@ export default function AddProject({ onClose }: { onClose: () => void }) {
     )
     const data = await res.json()
     setSkillUsers(data.data || [])
+  }
+
+  /* ---------- ROLE SEARCH API ---------- */
+  const searchByRole = async (role: string) => {
+    setRoleQuery(role)
+
+    if (!role) {
+      setRoleUsers([])
+      return
+    }
+
+    const res = await fetch(
+      `/api/admin/projects/search-by-role?role=${role}`
+    )
+    const data = await res.json()
+    setRoleUsers(data.data || [])
   }
 
   /* ---------- CREATE PROJECT ---------- */
@@ -111,10 +144,10 @@ export default function AddProject({ onClose }: { onClose: () => void }) {
       {/* SLIDE PANEL */}
       <div style={{
         width: '40%',
-        maxHeight: '80vh',
+        maxHeight: '85vh',
         overflowY: 'auto',
         padding: 20,
-        marginRight: 20,
+        marginRight: '4rem',
         borderRadius: 18,
         backdropFilter: 'blur(16px)',
         boxShadow:
@@ -126,8 +159,12 @@ export default function AddProject({ onClose }: { onClose: () => void }) {
           ? 'rgba(17,24,39,0.25)'
           : 'rgba(255,255,255,0.25)',
         transform: show ? 'translateX(0)' : 'translateX(120%)',
-        transition: 'all 0.45s ease'
-      }}>
+        transition: 'all 0.45s ease',
+        scrollbarWidth: 'none',
+        msOverflowStyle: 'none'
+      }}
+      className="hide-scrollbar"
+      >
 
         {/* HEADER */}
         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -187,6 +224,9 @@ export default function AddProject({ onClose }: { onClose: () => void }) {
               value={form.deadline}
               onChange={(v: string) => setForm({ ...form, deadline: v })}
               theme={theme}
+              style={{
+                colorScheme: theme === 'dark' ? 'dark' : 'light'
+              }}
             />
 
            
@@ -203,38 +243,175 @@ export default function AddProject({ onClose }: { onClose: () => void }) {
 
           {/* TEAM MEMBERS */}
           <Box theme={theme} title="Team Members" mt>
-            <Input
-              label="Search by Skill"
-              value={skillQuery}
-              onChange={searchBySkill}
-              theme={theme}
-            />
-
-            {skillUsers.map(u => (
-              <div
-                key={u.email}
-                onClick={() => {
-                  if (!form.teamEmails.includes(u.email)) {
-                    setForm({
-                      ...form,
-                      teamEmails: [...form.teamEmails, u.email]
-                    })
-                  }
-                }}
-                style={{
-                  padding: 8,
-                  marginTop: 6,
-                  borderRadius: 8,
-                  cursor: 'pointer',
-                  background: theme === 'dark'
-                    ? 'rgba(255,255,255,0.05)'
-                    : 'rgba(255,255,255,0.7)'
-                }}
-              >
-                <b>{u.name}</b>
-                <div style={{ fontSize: 12 }}>{u.email}</div>
+            
+            {/* Search Row - 2 Columns */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+              {/* Search by Skill */}
+              <div>
+                <Input
+                  label="Search by Skill"
+                  value={skillQuery}
+                  onChange={searchBySkill}
+                  theme={theme}
+                />
+                
+                {/* Skill Users in same column */}
+                {skillUsers.length > 0 && (
+                  <div style={{ marginTop: 8 }}>
+                    <p style={{ fontSize: 11, color: theme === 'dark' ? '#888' : '#666', marginBottom: 4 }}>Skill Results</p>
+                    {skillUsers.filter(u => !form.teamEmails.includes(u.email)).map(u => (
+                      <div
+                        key={`skill-${u.email}`}
+                        onClick={() => {
+                          if (!form.teamEmails.includes(u.email)) {
+                            setForm({
+                              ...form,
+                              teamEmails: [...form.teamEmails, u.email]
+                            })
+                          }
+                        }}
+                        style={{
+                          padding: 8,
+                          marginTop: 4,
+                          borderRadius: 6,
+                          cursor: 'pointer',
+                          background: theme === 'dark'
+                            ? 'rgba(59,130,246,0.15)'
+                            : 'rgba(59,130,246,0.1)',
+                          borderLeft: '2px solid #3b82f6',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        <b style={{ fontSize: 12 }}>{u.name}</b>
+                        <div style={{ fontSize: 10, color: theme === 'dark' ? '#aaa' : '#666' }}>{u.email}</div>
+                      </div>
+                    ))}
+                    
+                    {/* Add all / Deselect all skill users button */}
+                    {skillUsers.length > 0 && (
+                      <button
+                        onClick={() => {
+                          const unselectedUsers = skillUsers.filter(u => !form.teamEmails.includes(u.email))
+                          if (unselectedUsers.length > 0) {
+                            // Add all unselected users
+                            const newEmails = unselectedUsers.map(u => u.email)
+                            setForm({
+                              ...form,
+                              teamEmails: [...form.teamEmails, ...newEmails]
+                            })
+                          } else {
+                            // Deselect all skill users
+                            const skillEmails = skillUsers.map(u => u.email)
+                            setForm({
+                              ...form,
+                              teamEmails: form.teamEmails.filter(email => !skillEmails.includes(email))
+                            })
+                          }
+                        }}
+                        style={{
+                          marginTop: 6,
+                          padding: '4px 8px',
+                          fontSize: 10,
+                          backgroundColor: skillUsers.some(u => !form.teamEmails.includes(u.email)) ? '#3b82f6' : '#ef4444',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: 4,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        {skillUsers.some(u => !form.teamEmails.includes(u.email)) 
+                          ? `Add All (${skillUsers.filter(u => !form.teamEmails.includes(u.email)).length})`
+                          : 'Deselect All'}
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
-            ))}
+
+              {/* Search by Working Role */}
+              <div>
+                <Select
+                  label="Search by Working Role"
+                  value={roleQuery}
+                  options={['', ...workingRoles]}
+                  onChange={searchByRole}
+                  theme={theme}
+                />
+                
+                {/* Role Users in same column */}
+                {roleUsers.length > 0 && (
+                  <div style={{ marginTop: 8 }}>
+                    <p style={{ fontSize: 11, color: theme === 'dark' ? '#888' : '#666', marginBottom: 4 }}>Role Results</p>
+                    {roleUsers.filter(u => !form.teamEmails.includes(u.email)).map(u => (
+                      <div
+                        key={`role-${u.email}`}
+                        onClick={() => {
+                          if (!form.teamEmails.includes(u.email)) {
+                            setForm({
+                              ...form,
+                              teamEmails: [...form.teamEmails, u.email]
+                            })
+                          }
+                        }}
+                        style={{
+                          padding: 8,
+                          marginTop: 4,
+                          borderRadius: 6,
+                          cursor: 'pointer',
+                          background: theme === 'dark'
+                            ? 'rgba(16,185,129,0.15)'
+                            : 'rgba(16,185,129,0.1)',
+                          borderLeft: '2px solid #10b981',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        <b style={{ fontSize: 12 }}>{u.name}</b>
+                        <div style={{ fontSize: 10, color: theme === 'dark' ? '#aaa' : '#666' }}>{u.email}</div>
+                        <div style={{ fontSize: 9, color: '#10b981', marginTop: 1 }}>{u.workingRole || u.designation}</div>
+                      </div>
+                    ))}
+                    
+                    {/* Add all / Deselect all role users button */}
+                    {roleUsers.length > 0 && (
+                      <button
+                        onClick={() => {
+                          const unselectedUsers = roleUsers.filter(u => !form.teamEmails.includes(u.email))
+                          if (unselectedUsers.length > 0) {
+                            // Add all unselected users
+                            const newEmails = unselectedUsers.map(u => u.email)
+                            setForm({
+                              ...form,
+                              teamEmails: [...form.teamEmails, ...newEmails]
+                            })
+                          } else {
+                            // Deselect all role users
+                            const roleEmails = roleUsers.map(u => u.email)
+                            setForm({
+                              ...form,
+                              teamEmails: form.teamEmails.filter(email => !roleEmails.includes(email))
+                            })
+                          }
+                        }}
+                        style={{
+                          marginTop: 6,
+                          padding: '4px 8px',
+                          fontSize: 10,
+                          backgroundColor: roleUsers.some(u => !form.teamEmails.includes(u.email)) ? '#10b981' : '#ef4444',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: 4,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        {roleUsers.some(u => !form.teamEmails.includes(u.email)) 
+                          ? `Add All (${roleUsers.filter(u => !form.teamEmails.includes(u.email)).length})`
+                          : 'Deselect All'}
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
 
             {/* SELECTED */}
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 10 }}>

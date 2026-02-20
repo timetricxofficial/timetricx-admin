@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { useTheme } from '../../../../contexts/ThemeContext'
-import { useToast } from '../../../../contexts/ToastContext'
+import { useTheme } from '../../../../../contexts/ThemeContext'
+import { useToast } from '../../../../../contexts/ToastContext'
 
 export default function EditUser({ email, close }: any) {
   const { theme } = useTheme()
@@ -115,6 +115,7 @@ export default function EditUser({ email, close }: any) {
           maxHeight: '75vh',
           overflowY: 'auto',
           padding: '20px',
+          marginRight: '4rem',
           borderRadius: '18px',
           backdropFilter: 'blur(16px)',
           boxShadow: '0 20px 50px rgba(0,0,0,0.4), 0 8px 30px rgba(59,130,246,0.3), 0 15px 60px rgba(37,99,235,0.2)',
@@ -127,8 +128,12 @@ export default function EditUser({ email, close }: any) {
             : 'rgba(255,255,255,0.25)',
 
           transform: show ? 'translateX(0)' : 'translateX(120%)',
-          transition: 'all 0.45s ease'
+          transition: 'all 0.45s ease',
+
+          scrollbarWidth: 'none',
+          msOverflowStyle: 'none'
         }}
+        className="hide-scrollbar"
       >
 
         {/* HEADER */}
@@ -237,7 +242,7 @@ export default function EditUser({ email, close }: any) {
       {Select('Role',['user','admin','moderator'],form.role,(v:any)=>setForm({...form,role:v}),theme)}
 
       <div style={{ marginTop: 10 }}>
-        {Input('Website', form.website, (v:any)=>setForm({...form,website:v}), theme)}
+        {Input('Portfolio Link', form.website, (v:any)=>setForm({...form,website:v}), theme)}
       </div>
 
       <div style={{ marginTop: 10 }}>

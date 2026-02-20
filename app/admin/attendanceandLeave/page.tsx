@@ -1,14 +1,47 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTheme } from '../../../contexts/ThemeContext'
 import Attendance from './components/Attendance'
 import Leave from './components/Leave'
 import { motion } from 'framer-motion'
 
+interface CurrentAdmin {
+  email: string
+  edit: boolean
+}
+
 export default function AttendanceAndLeavePage() {
   const { theme } = useTheme()
   const [activeTab, setActiveTab] = useState<'attendance' | 'leave'>('attendance')
+  const [currentAdmin, setCurrentAdmin] = useState<CurrentAdmin | null>(null)
+
+  // 🔥 Get current admin from API (fresh data from DB)
+  useEffect(() => {
+    const fetchCurrentAdmin = async () => {
+      try {
+        const res = await fetch('/api/admin/get-current')
+        const data = await res.json()
+        
+        if (data.success && data.data) {
+          setCurrentAdmin({
+            email: data.data.email,
+            edit: data.data.edit
+          })
+        }
+      } catch (err) {
+        console.error('Failed to fetch current admin', err)
+        setCurrentAdmin(null)
+      }
+    }
+    
+    fetchCurrentAdmin()
+  }, [])
+
+  // Permission check - only check edit flag
+  const canEdit = () => currentAdmin?.edit === true
+  const canDelete = () => currentAdmin?.edit === true
+  const canApprove = () => currentAdmin?.edit === true
 
   return (
     <div className={`px-10 py-2 min-h-screen 
@@ -78,7 +111,10 @@ export default function AttendanceAndLeavePage() {
         transition={{ duration: 0.3 }}
         className="mt-12 w-full"
       >
-        {activeTab === 'attendance' ? <Attendance /> : <Leave />}
+        {activeTab === 'attendance' 
+          ? <Attendance canEdit={canEdit()} canDelete={canDelete()} />
+          : <Leave canApprove={canApprove()} canEdit={canEdit()} />
+        }
       </motion.div>
 
     </div>

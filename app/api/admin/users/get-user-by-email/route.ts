@@ -17,8 +17,6 @@ export async function GET(req: Request) {
     }
 
     const user = await User.findOne({ email })
-      .select('-password') // 👈 password exclude
-
     if (!user) {
       return NextResponse.json(
         { success: false, message: 'User not found' },

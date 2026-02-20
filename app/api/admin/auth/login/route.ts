@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import connectDB from '@/lib/database'
-import { User } from '@/models/User'
+import { Admin } from '@/models/Admin'
 import bcrypt from 'bcryptjs'
 import { generateToken } from '@/utils/generateToken'
 
@@ -8,52 +8,61 @@ export async function POST(req: NextRequest) {
   try {
     await connectDB()
 
-    const { email, password } = await req.json()
+    const { password } = await req.json()
 
-    if (!email || !password) {
+    if (!password) {
       return NextResponse.json(
-        { success: false, message: 'Email and password required' },
+        { success: false, message: 'Password required' },
         { status: 400 }
       )
     }
 
-    const user = await User.findOne({ email: email.toLowerCase() }).select('+password')
+    // Get all admins and find matching password
+    const admins = await Admin.find().select('+password')
 
-    if (!user) {
+    if (!admins || admins.length === 0) {
       return NextResponse.json(
-        { success: false, message: 'User not found' },
+        { success: false, message: 'No admins found' },
         { status: 404 }
       )
     }
 
-    const isMatch = await bcrypt.compare(password, user.password)
+    // Find admin with matching password
+    let matchedAdmin = null
+    for (const admin of admins) {
+      const isMatch = await bcrypt.compare(password, admin.password)
+      if (isMatch) {
+        matchedAdmin = admin
+        break
+      }
+    }
 
-    if (!isMatch) {
+    if (!matchedAdmin) {
       return NextResponse.json(
         { success: false, message: 'Invalid credentials' },
         { status: 401 }
       )
     }
 
-    if (user.role !== 'admin' && user.role !== 'superadmin') {
+    if (matchedAdmin.isDisabled) {
       return NextResponse.json(
-        { success: false, message: 'Admin access only' },
+        { success: false, message: 'Admin account is disabled' },
         { status: 403 }
       )
     }
 
     const token = generateToken({
-      userId: user._id,
-      email: user.email,
-      role: user.role
+      userId: matchedAdmin._id,
+      email: matchedAdmin.email,
+      role: 'admin'
     })
 
-    const userObj = user.toObject()
-    delete userObj.password
+    const adminObj = matchedAdmin.toObject()
+    delete adminObj.password
 
     return NextResponse.json({
       success: true,
-      user: userObj,
+      user: adminObj,
       token
     })
 

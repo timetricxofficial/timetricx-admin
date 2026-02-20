@@ -12,6 +12,7 @@ export interface IProject extends Document {
 
   teamEmails: string[]
   descriptionDriveLink?: string
+  isDisabled: boolean
 
   tasks: {
     total: number
@@ -46,6 +47,10 @@ const ProjectSchema = new Schema<IProject>(
       trim: true
     },
 
+    isDisabled: {
+      type: Boolean,
+      default: false
+    },
     status: {
       type: String,
       enum: ['active', 'completed', 'pending'],

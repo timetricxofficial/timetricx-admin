@@ -11,7 +11,8 @@ export async function GET() {
       {
         name: 1,
         status: 1,
-        progress: 1
+        progress: 1,
+        isDisabled: 1
       }
     )
       .sort({ createdAt: -1 })

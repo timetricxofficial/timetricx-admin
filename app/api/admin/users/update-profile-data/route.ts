@@ -48,7 +48,6 @@ export async function PUT(request: NextRequest) {
     if (name) user.name = name
     if (mobileNumber) user.mobileNumber = mobileNumber
     if (role) user.role = role
-
     /* ---------- PROFILE ---------- */
     if (!user.profile) user.profile = {}
 

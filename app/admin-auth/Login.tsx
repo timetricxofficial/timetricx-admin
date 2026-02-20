@@ -10,7 +10,6 @@ export default function AdminLogin() {
   const mountRef = useRef<HTMLDivElement | null>(null)
   const router = useRouter()
 
-  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -102,8 +101,8 @@ export default function AdminLogin() {
 
 // }, [router])
 const handleLogin = async () => {
-  if (!email || !password) {
-    alert('Enter email and password')
+  if (!password) {
+    alert('Enter password')
     return
   }
 
@@ -113,7 +112,7 @@ const handleLogin = async () => {
     const res = await fetch('/api/admin/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
+      body: JSON.stringify({ password })
     })
 
     const data = await res.json()
@@ -129,7 +128,7 @@ const handleLogin = async () => {
 
       // 🔥 Store full admin user object
       Cookies.set('adminUser', JSON.stringify(data.user), {
-        expires: 7,
+        expires: 365,
         secure: true,
         sameSite: 'Strict'
       })
@@ -171,14 +170,6 @@ const handleLogin = async () => {
         </motion.h2>
 
         <div className="space-y-4">
-
-          <input
-            type="email"
-            placeholder="Admin Email"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            className="w-full px-4 py-3 rounded-lg bg-black/40 text-white border border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600"
-          />
 
           <input
             type="password"

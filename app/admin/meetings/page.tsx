@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react'
 import { Search, Plus, Edit, Trash2, Video } from 'lucide-react'
 import { useTheme } from '../../../contexts/ThemeContext'
+import { useToast } from '../../../contexts/ToastContext'
+import Swal from 'sweetalert2'
 import AddMeeting from './components/AddMeeting'
 import EditMeeting from './components/EditMeeting'
 
@@ -20,8 +22,14 @@ interface Meeting {
   updatedAt: string
 }
 
+interface CurrentAdmin {
+  email: string
+  edit: boolean
+}
+
 export default function AdminMeetingsPage() {
   const { theme } = useTheme()
+  const { success, error } = useToast()
 
   const [meetings, setMeetings] = useState<Meeting[]>([])
   const [search, setSearch] = useState('')
@@ -29,6 +37,34 @@ export default function AdminMeetingsPage() {
   const [openEdit, setOpenEdit] = useState(false)
   const [selectedMeeting, setSelectedMeeting] = useState<Meeting | null>(null)
   const [loading, setLoading] = useState(true)
+  const [currentAdmin, setCurrentAdmin] = useState<CurrentAdmin | null>(null)
+
+  // 🔥 Get current admin from API (fresh data from DB)
+  useEffect(() => {
+    const fetchCurrentAdmin = async () => {
+      try {
+        const res = await fetch('/api/admin/get-current')
+        const data = await res.json()
+        
+        if (data.success && data.data) {
+          setCurrentAdmin({
+            email: data.data.email,
+            edit: data.data.edit
+          })
+        }
+      } catch (err) {
+        console.error('Failed to fetch current admin', err)
+        setCurrentAdmin(null)
+      }
+    }
+    
+    fetchCurrentAdmin()
+  }, [])
+
+  // Permission check - only check edit flag
+  const canEdit = () => currentAdmin?.edit === true
+  const canDelete = () => currentAdmin?.edit === true
+  const canCreate = () => currentAdmin?.edit === true
 
   useEffect(() => {
     getMeetings()
@@ -75,6 +111,37 @@ export default function AdminMeetingsPage() {
     window.open(link, '_blank')
   }
 
+  /* ---------------- DELETE MEETING ---------------- */
+  const deleteMeeting = async (id: string) => {
+    try {
+      const result = await Swal.fire({
+        title: 'Are you sure?',
+        text: 'You will not be able to recover this meeting!',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        cancelButtonColor: '#6b7280',
+        confirmButtonText: 'Yes, delete it!'
+      })
+
+      if (result.isConfirmed) {
+        const res = await fetch(`/api/admin/meetings/${id}`, {
+          method: 'DELETE'
+        })
+
+        if (res.ok) {
+          success('Meeting deleted successfully')
+          getMeetings()
+        } else {
+          error('Failed to delete meeting')
+        }
+      }
+    } catch (err) {
+      console.error('Delete meeting error:', err)
+      error('Failed to delete meeting')
+    }
+  }
+
   return (
     <div className="p-6">
 
@@ -96,7 +163,12 @@ export default function AdminMeetingsPage() {
 
         <button
           onClick={() => setOpenAdd(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition"
+          disabled={!canCreate()}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg transition ${
+            canCreate()
+              ? 'bg-blue-600 hover:bg-blue-500 text-white'
+              : 'bg-gray-400 text-gray-200 cursor-not-allowed'
+          }`}
         >
           <Plus size={18} /> Schedule Meeting
         </button>
@@ -167,16 +239,25 @@ export default function AdminMeetingsPage() {
                 <td className="p-3 flex justify-center gap-3">
                   <button
                     onClick={() => {
-                      setSelectedMeeting(meeting)
-                      setOpenEdit(true)
+                      if (canEdit()) {
+                        setSelectedMeeting(meeting)
+                        setOpenEdit(true)
+                      }
                     }}
-                    className="text-blue-600 hover:scale-110 transition"
+                    disabled={!canEdit()}
+                    className={`text-blue-600 ${
+                      canEdit() ? 'hover:scale-110 cursor-pointer' : 'cursor-not-allowed opacity-30'
+                    }`}
                   >
                     <Edit size={18} />
                   </button>
 
                   <button
-                    className="text-gray-700 hover:text-red-600 hover:scale-110 transition"
+                    onClick={() => canDelete() && deleteMeeting(meeting._id)}
+                    disabled={!canDelete()}
+                    className={`text-gray-700 hover:text-red-600 ${
+                      canDelete() ? 'hover:scale-110 cursor-pointer' : 'cursor-not-allowed opacity-30'
+                    }`}
                   >
                     <Trash2 size={18} />
                   </button>

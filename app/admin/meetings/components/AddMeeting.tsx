@@ -27,10 +27,9 @@ export default function AddMeeting({ onClose }: { onClose: () => void }) {
     // 🔥 Later replace with session email
     setForm(prev => ({
       ...prev,
-      hostEmail: 'admin@gmail.com'
+      hostEmail: ''
     }))
   }, [])
-
   /* -------- FETCH PROJECTS -------- */
   const fetchProjects = async () => {
     try {

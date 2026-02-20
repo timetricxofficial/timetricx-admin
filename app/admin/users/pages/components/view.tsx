@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useTheme } from '../../../../contexts/ThemeContext'
+import { useTheme } from '../../../../../contexts/ThemeContext'
 
 const getColor = (count:number) => {
   if(count === 0) return "#e5e7eb"
@@ -69,6 +69,7 @@ export default function ViewUser({ email, close }: any) {
           maxHeight: '75vh',
           overflowY: 'auto',
           padding: '20px',
+          marginRight: '4rem',
           borderRadius: '18px',
           backdropFilter: 'blur(16px)',
           boxShadow:
@@ -83,8 +84,12 @@ export default function ViewUser({ email, close }: any) {
             : 'rgba(255,255,255,0.25)',
 
           transform: show ? 'translateX(0)' : 'translateX(120%)',
-          transition: 'all 0.45s ease'
+          transition: 'all 0.45s ease',
+
+          scrollbarWidth: 'none',
+          msOverflowStyle: 'none'
         }}
+        className="hide-scrollbar"
       >
 
         {/* HEADER */}
@@ -158,88 +163,88 @@ export default function ViewUser({ email, close }: any) {
           {/* GITHUB CONTRIBUTION */}
           {gitData && (
             <Box theme={theme} title="Github Activity" mt>
+              <div style={{ gridColumn: '1 / -1' }}>
+                <p style={{
+                  fontSize: 13,
+                  color: theme === 'dark' ? '#aaa' : '#555',
+                  marginBottom: 10
+                }}>
+                  {gitData.total || 0} contributions in the last year
+                </p>
 
-              <p style={{
-                fontSize: 13,
-                color: theme === 'dark' ? '#aaa' : '#555',
-                marginBottom: 10
-              }}>
-                {gitData.total || 0} contributions in the last year
-              </p>
+                <div className="flex overflow-x-auto">
 
-              <div className="flex overflow-x-auto">
+                  {gitData.months.map((month:any, mi:number)=>(
 
-                {gitData.months.map((month:any, mi:number)=>(
+                    <div key={mi} className="flex">
 
-                  <div key={mi} className="flex">
+                      <div>
 
-                    <div>
+                        <p className={`text-xs font-semibold mb-2 text-center ${
+                          theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                        }`}>
+                          {month.month}
+                        </p>
 
-                      <p className={`text-xs font-semibold mb-2 text-center ${
-                        theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
-                      }`}>
-                        {month.month}
-                      </p>
+                        <div className="flex gap-1">
 
-                      <div className="flex gap-1">
+                          {month.weeks.map((week:any, wi:number)=>(
 
-                        {month.weeks.map((week:any, wi:number)=>(
+                            <div key={wi} className="flex flex-col gap-1">
 
-                          <div key={wi} className="flex flex-col gap-1">
+                              {week.map((day:any, di:number)=>(
 
-                            {week.map((day:any, di:number)=>(
+                                <div
+                                  key={di}
+                                  title={`${day.date} : ${day.count}`}
+                                  className="w-4 h-4 rounded-sm"
+                                  style={{
+                                    background:getColor(day.count)
+                                  }}
+                                ></div>
 
-                              <div
-                                key={di}
-                                title={`${day.date} : ${day.count}`}
-                                className="w-4 h-4 rounded-sm"
-                                style={{
-                                  background:getColor(day.count)
-                                }}
-                              ></div>
+                              ))}
 
-                            ))}
+                            </div>
 
-                          </div>
+                          ))}
 
-                        ))}
-
+                        </div>
                       </div>
+
+                      <div className="mx-3 border-r"></div>
+
                     </div>
 
-                    <div className="mx-3 border-r"></div>
+                  ))}
 
-                  </div>
+                </div>
 
-                ))}
+                {/* SCALE */}
+                <div style={{
+                  display:'flex',
+                  justifyContent:'flex-end',
+                  gap:6,
+                  marginTop:12,
+                  alignItems:'center'
+                }}>
+                  <span style={{fontSize:12}}>Less</span>
 
+                  {[0,1,2,3,4].map(l=>(
+                    <div
+                      key={l}
+                      style={{
+                        width:12,
+                        height:12,
+                        borderRadius:3,
+                        background:getColor(l*3)
+                      }}
+                    />
+                  ))}
+
+                  <span style={{fontSize:12}}>More</span>
+                </div>
               </div>
-
-              {/* SCALE */}
-              <div style={{
-                display:'flex',
-                justifyContent:'flex-end',
-                gap:6,
-                marginTop:12,
-                alignItems:'center'
-              }}>
-                <span style={{fontSize:12}}>Less</span>
-
-                {[0,1,2,3,4].map(l=>(
-                  <div
-                    key={l}
-                    style={{
-                      width:12,
-                      height:12,
-                      borderRadius:3,
-                      background:getColor(l*3)
-                    }}
-                  />
-                ))}
-
-                <span style={{fontSize:12}}>More</span>
-              </div>
-
             </Box>
           )}
 
@@ -255,21 +260,25 @@ export default function ViewUser({ email, close }: any) {
 function Box({ children, theme, title, mt }: any) {
   return (
     <div style={{
-      padding: 14,
+      padding: 16,
       borderRadius: 14,
-      marginTop: mt ? 22 : 0,
+      marginTop: mt ? 20 : 0,
       background: theme === 'dark'
         ? 'rgba(255,255,255,0.05)'
         : 'rgba(0,0,0,0.04)'
     }}>
       {title && (
         <b style={{
-          fontSize: 13,
-          color: theme === 'dark' ? '#aaa' : '#444'
+          fontSize: 14,
+          color: theme === 'dark' ? '#fff' : '#333',
+          display: 'block',
+          marginBottom: 12,
+          borderBottom: theme === 'dark' ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.1)',
+          paddingBottom: 8
         }}>{title}</b>
       )}
 
-      <div style={{ marginTop: 10, display: 'grid', gap: 10 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px 20px' }}>
         {children}
       </div>
     </div>
@@ -277,22 +286,50 @@ function Box({ children, theme, title, mt }: any) {
 }
 
 function Row(label: string, val: any, theme: string) {
+  const isLink = typeof val === 'string' && (val.startsWith('http') || val.startsWith('https'))
+  
   return (
-    <div>
+    <div style={{ minWidth: 0 }}>
       <p style={{
-        fontSize: 12,
-        color: theme === 'dark' ? '#aaa' : '#555'
+        fontSize: 11,
+        color: theme === 'dark' ? '#888' : '#666',
+        textTransform: 'uppercase',
+        letterSpacing: '0.5px',
+        marginBottom: 4
       }}>
         {label}
       </p>
 
-      <p style={{
-        fontSize: 14,
-        fontWeight: 500,
-        color: theme === 'dark' ? '#fff' : '#111'
-      }}>
-        {val}
-      </p>
+      {isLink ? (
+        <a 
+          href={val} 
+          target="_blank" 
+          rel="noopener noreferrer"
+          style={{
+            fontSize: 13,
+            fontWeight: 500,
+            color: '#3b82f6',
+            textDecoration: 'none',
+            display: 'block',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap'
+          }}
+        >
+          {val}
+        </a>
+      ) : (
+        <p style={{
+          fontSize: 13,
+          fontWeight: 500,
+          color: theme === 'dark' ? '#fff' : '#111',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: val.length > 30 ? 'nowrap' : 'normal'
+        }}>
+          {val}
+        </p>
+      )}
     </div>
   )
 }

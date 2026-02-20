@@ -9,6 +9,7 @@ export interface IUser extends Document {
   designation?: string; // 👈 added
   shift?: string; // 👈 added
   workingType?: string; // 👈 added
+  workingRole?: string; // 👈 added
   role: 'user' | 'admin' | 'superadmin';
   isActive: boolean;
   isEmailVerified: boolean;
@@ -42,7 +43,7 @@ export interface IUser extends Document {
     website?: string;
     location?: string;
     dateOfBirth?: Date;
-    gender?: 'male' | 'female' | 'other' ;
+    gender?: 'male' | 'female' | 'other';
   };
   socialLinks?: {
     linkedin?: string;
@@ -87,6 +88,11 @@ const UserSchema: Schema = new Schema(
       required: false,
       default: undefined
     },
+    workingRole: {
+      type: String,
+      required: false,
+      default: undefined
+    },
     profilePicture: {
       type: String,
       default: ''
@@ -102,7 +108,7 @@ const UserSchema: Schema = new Schema(
     },
     role: {
       type: String,
-      enum: ['user', 'admin','superadmin'],
+      enum: ['user', 'admin', 'superadmin'],
       default: 'user'
     },
     isActive: {

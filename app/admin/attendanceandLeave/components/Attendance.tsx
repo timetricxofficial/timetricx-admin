@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useTheme } from '../../../../contexts/ThemeContext'
+import { Eye, Trash2 } from 'lucide-react'
 
 interface AttendanceData {
   _id: string
@@ -10,7 +11,12 @@ interface AttendanceData {
   months: any[]
 }
 
-export default function Attendance() {
+interface AttendanceProps {
+  canEdit?: boolean
+  canDelete?: boolean
+}
+
+export default function Attendance({ canEdit = false, canDelete = false }: AttendanceProps) {
   const { theme } = useTheme()
 
   const [data, setData] = useState<AttendanceData[]>([])
