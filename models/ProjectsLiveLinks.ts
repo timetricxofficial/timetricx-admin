@@ -11,7 +11,6 @@ export interface IProjectLiveLink extends Document {
 
   status: "pending" | "approved" | "rejected";
 
-  reviewedBy?: mongoose.Types.ObjectId;
   reviewedAt?: Date;
 
   createdAt: Date;

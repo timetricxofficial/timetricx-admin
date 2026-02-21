@@ -1,12 +1,13 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Search, Plus, Edit, Ban, Trash2, CheckCircle } from 'lucide-react'
+import { Search, Plus, Edit, Ban, Trash2, CheckCircle, Link as LinkIcon } from 'lucide-react'
 import { useTheme } from '../../../contexts/ThemeContext'
 import { useToast } from '../../../contexts/ToastContext'
 import Swal from 'sweetalert2'
 import AddProject from './components/addprojects'
 import EditProjects from './components/editprojects'
+import ProjectLinksModal from './components/ProjectLinksModal'
 
 interface Project {
   _id: string
@@ -31,6 +32,10 @@ export default function AdminProjectsPage() {
   const [editProject, setEditProject] = useState<Project | null>(null)
   const [loading, setLoading] = useState(true)
   const [currentAdmin, setCurrentAdmin] = useState<CurrentAdmin | null>(null)
+  
+  // Project Links Modal State
+  const [openLinksModal, setOpenLinksModal] = useState(false)
+  const [selectedProjectName, setSelectedProjectName] = useState('')
 
   // 🔥 Get current admin from API (fresh data from DB)
   useEffect(() => {
@@ -198,7 +203,8 @@ export default function AdminProjectsPage() {
             <tr>
               <th className="p-3 text-left">Name</th>
               <th className="p-3 text-left">Status</th>
-              <th className="p-3 text-left">Progress</th>
+              <th className="p-3 text-center">Progress</th>
+              <th className="p-3 text-center">Check Links</th>
               <th className="p-3 text-center">Action</th>
             </tr>
           </thead>
@@ -248,6 +254,23 @@ export default function AdminProjectsPage() {
                       {project.progress}%
                     </span>
                   </div>
+                </td>
+
+                {/* CHECK LINKS BUTTON */}
+                <td className="p-3 text-center">
+                  <button
+                    onClick={() => {
+                      setSelectedProjectName(project.name)
+                      setOpenLinksModal(true)
+                    }}
+                    className={`flex items-center gap-1 mx-auto px-3 py-1 rounded-lg text-sm transition hover:scale-105 ${
+                      theme === 'dark'
+                        ? 'bg-purple-600 hover:bg-purple-500 text-white'
+                        : 'bg-purple-500 hover:bg-purple-600 text-white'
+                    }`}
+                  >
+                    <LinkIcon size={14} /> Check Links
+                  </button>
                 </td>
 
                 {/* ACTIONS */}
@@ -331,6 +354,13 @@ export default function AdminProjectsPage() {
           }}
         />
       )}
+
+      {/* PROJECT LINKS MODAL */}
+      <ProjectLinksModal
+        isOpen={openLinksModal}
+        onClose={() => setOpenLinksModal(false)}
+        projectName={selectedProjectName}
+      />
     </div>
   )
 }
