@@ -16,6 +16,8 @@ interface AttendanceProps {
   canDelete?: boolean
 }
 
+import Skeleton from '../../../../components/ui/Skeleton'
+
 export default function Attendance({ canEdit = false, canDelete = false }: AttendanceProps) {
   const { theme } = useTheme()
 
@@ -210,19 +212,22 @@ export default function Attendance({ canEdit = false, canDelete = false }: Atten
                 </td>
               </tr>
             ))}
+
+            {/* SKELETON ROWS DURING LOADING */}
+            {loading && Array.from({ length: 3 }).map((_, i) => (
+              <tr key={`skeleton-${i}`} className={`border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
+                <td className="p-3"><Skeleton height={20} width={30} /></td>
+                <td className="p-3"><Skeleton height={20} width={200} /></td>
+                <td className="p-3"><Skeleton height={20} width={100} /></td>
+                <td className="p-3 text-center"><Skeleton height={32} width={130} className="rounded-lg" /></td>
+              </tr>
+            ))}
           </tbody>
 
         </table>
       </div>
 
-      {/* ================= LOADING / NO MORE ================= */}
-      {loading && (
-        <div className="flex justify-center py-6">
-          <div className={`animate-spin rounded-full h-6 w-6 border-b-2 ${theme === 'dark' ? 'border-blue-400' : 'border-blue-600'}`} />
-        </div>
-      )}
-
-      {!hasMore && data.length > 0 && (
+      {!hasMore && data.length > 0 && !loading && (
         <div className={`text-center mt-6 text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
           No more attendance to load
         </div>

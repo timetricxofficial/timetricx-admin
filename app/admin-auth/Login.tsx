@@ -5,6 +5,7 @@ import { motion } from 'framer-motion'
 import * as THREE from 'three'
 import { useRouter } from 'next/navigation'
 import Cookies from 'js-cookie'
+import Loading from '../../components/ui/Loading'
 
 export default function AdminLogin() {
   const mountRef = useRef<HTMLDivElement | null>(null)
@@ -80,72 +81,72 @@ export default function AdminLogin() {
   }, [])
 
   /* ================= LOGIN ================= */
-// useEffect(() => {
-//   const token = Cookies.get('adminToken')
-//   const userCookie = Cookies.get('adminUser')
+  // useEffect(() => {
+  //   const token = Cookies.get('adminToken')
+  //   const userCookie = Cookies.get('adminUser')
 
-//   if (!token || !userCookie) return
+  //   if (!token || !userCookie) return
 
-//   try {
-//     const user = JSON.parse(userCookie)
+  //   try {
+  //     const user = JSON.parse(userCookie)
 
-//     if (user.role === 'admin' || user.role === 'superadmin') {
-//       router.push('/admin')
-//     }
+  //     if (user.role === 'admin' || user.role === 'superadmin') {
+  //       router.push('/admin')
+  //     }
 
-//   } catch (err) {
-//     console.error('Invalid admin cookie')
-//     Cookies.remove('adminToken')
-//     Cookies.remove('adminUser')
-//   }
+  //   } catch (err) {
+  //     console.error('Invalid admin cookie')
+  //     Cookies.remove('adminToken')
+  //     Cookies.remove('adminUser')
+  //   }
 
-// }, [router])
-const handleLogin = async () => {
-  if (!password) {
-    alert('Enter password')
-    return
-  }
-
-  try {
-    setLoading(true)
-
-    const res = await fetch('/api/admin/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password })
-    })
-
-    const data = await res.json()
-
-    if (data.success) {
-
-      // 🔥 Store token
-      Cookies.set('adminToken', data.token, {
-        expires: 365,        // 1 year
-        secure: true,
-        sameSite: 'Strict'
-      })
-
-      // 🔥 Store full admin user object
-      Cookies.set('adminUser', JSON.stringify(data.user), {
-        expires: 365,
-        secure: true,
-        sameSite: 'Strict'
-      })
-
-      router.push('/admin')
-
-    } else {
-      alert(data.message || 'Login failed')
+  // }, [router])
+  const handleLogin = async () => {
+    if (!password) {
+      alert('Enter password')
+      return
     }
 
-  } catch (err) {
-    console.error(err)
-    alert('Server error')
-  } finally {
-    setLoading(false)
+    try {
+      setLoading(true)
+
+      const res = await fetch('/api/admin/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password })
+      })
+
+      const data = await res.json()
+
+      if (data.success) {
+
+        // 🔥 Store token
+        Cookies.set('adminToken', data.token, {
+          expires: 365,        // 1 year
+          secure: true,
+          sameSite: 'Strict'
+        })
+
+        // 🔥 Store full admin user object
+        Cookies.set('adminUser', JSON.stringify(data.user), {
+          expires: 365,
+          secure: true,
+          sameSite: 'Strict'
+        })
+
+        router.push('/admin')
+
+      } else {
+        alert(data.message || 'Login failed')
+      }
+
+    } catch (err) {
+      console.error(err)
+      alert('Server error')
+    } finally {
+      setLoading(false)
+    }
   }
-}
 
   return (
     <div className="relative min-h-screen flex items-center justify-center bg-black overflow-hidden">
@@ -186,7 +187,14 @@ const handleLogin = async () => {
             disabled={loading}
             className="w-full py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition disabled:opacity-60"
           >
-            {loading ? 'Signing In...' : 'Login'}
+            {loading ? (
+              <div className="flex items-center justify-center gap-2">
+                <Loading size="small" />
+                Signing In...
+              </div>
+            ) : (
+              'Login'
+            )}
           </motion.button>
 
         </div>
