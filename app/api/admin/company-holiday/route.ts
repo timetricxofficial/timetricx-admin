@@ -91,7 +91,7 @@ export async function POST(req: Request) {
 
         // 📧 Background notification
         if (notifyTarget && notifyTarget !== 'none') {
-            sendHolidayEmails(notifyTarget, selectedUserIds || [], title, date);
+            await sendHolidayEmails(notifyTarget, selectedUserIds || [], title, date);
         }
 
         return NextResponse.json({ success: true, data: newHoliday })
@@ -162,7 +162,7 @@ export async function PATCH(req: Request) {
 
         // 📧 Background notification
         if (notifyTarget && notifyTarget !== 'none') {
-            sendHolidayEmails(notifyTarget, selectedUserIds || [], holiday.title, holiday.date.toISOString());
+            await sendHolidayEmails(notifyTarget, selectedUserIds || [], holiday.title, holiday.date.toISOString());
         }
 
         return NextResponse.json({ success: true, data: holiday })
