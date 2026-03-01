@@ -5,6 +5,7 @@ import { motion } from 'framer-motion'
 import * as THREE from 'three'
 import { useRouter } from 'next/navigation'
 import Cookies from 'js-cookie'
+import { Eye, EyeOff } from 'lucide-react'
 import Loading from '../../components/ui/Loading'
 
 export default function AdminLogin() {
@@ -13,6 +14,7 @@ export default function AdminLogin() {
 
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
 
   /* ================= THREE JS BACKGROUND ================= */
 
@@ -172,13 +174,22 @@ export default function AdminLogin() {
 
         <div className="space-y-4">
 
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-            className="w-full px-4 py-3 rounded-lg bg-black/40 text-white border border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600"
-          />
+          <div className="relative">
+            <input
+              type={showPassword ? 'text' : 'password'}
+              placeholder="Password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              className="w-full px-4 py-3 rounded-lg bg-black/40 text-white border border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600 pr-12"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-blue-600 hover:text-blue-500 transition-colors"
+            >
+              {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+            </button>
+          </div>
 
           <motion.button
             whileTap={{ scale: 0.95 }}
