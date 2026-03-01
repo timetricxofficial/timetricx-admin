@@ -60,6 +60,7 @@ export async function POST(req: NextRequest) {
 
         await transporter.sendMail({
             from: `"Timetricx Holiday Desk" <${process.env.SMTP_FROM}>`,
+            to: process.env.SMTP_FROM,
             bcc: emails,
             subject: `Upcoming Company Holidays List | Timetricx`,
             html: `

@@ -25,6 +25,7 @@ export const sendHolidayNotificationMail = async (
 
         const info = await transporter.sendMail({
             from: `"Timetricx Holiday Alert" <${process.env.SMTP_FROM}>`,
+            to: process.env.SMTP_FROM, // Required by some SMTP servers
             bcc: emails, // Use BCC to avoid users seeing each others emails
             subject: `Company Holiday: ${holidayTitle} on ${new Date(holidayDate).toDateString()} | Timetricx`,
             html: `
