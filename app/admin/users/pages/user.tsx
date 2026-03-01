@@ -37,7 +37,7 @@ export default function User({ onEdit, onView }: UserProps) {
       try {
         const res = await fetch('/api/admin/get-current')
         const data = await res.json()
-        
+
         if (data.success && data.data) {
           setCurrentAdmin({
             email: data.data.email,
@@ -49,7 +49,7 @@ export default function User({ onEdit, onView }: UserProps) {
         setCurrentAdmin(null)
       }
     }
-    
+
     fetchCurrentAdmin()
   }, [])
 
@@ -68,7 +68,7 @@ export default function User({ onEdit, onView }: UserProps) {
   const fetchUsers = useCallback(async (pageNum: number, append: boolean = false) => {
     if (loading) return
     setLoading(true)
-    
+
     try {
       const res = await fetch(`/api/admin/users/get-all-users?page=${pageNum}&limit=${limit}`)
       const data = await res.json()
@@ -76,7 +76,7 @@ export default function User({ onEdit, onView }: UserProps) {
       if (data.success) {
         // Filter only non-admin users
         const nonAdminUsers = data.data.filter((u: any) => u.role !== 'admin' && !u.email.includes('admin'))
-        
+
         if (append) {
           setUsers(prev => {
             const existingIds = new Set(prev.map((u: any) => u._id))
@@ -104,11 +104,11 @@ export default function User({ onEdit, onView }: UserProps) {
   useEffect(() => {
     const handleScroll = () => {
       if (loading || !hasMore) return
-      
+
       const scrollTop = window.scrollY || document.documentElement.scrollTop
       const scrollHeight = document.documentElement.scrollHeight
       const clientHeight = window.innerHeight
-      
+
       if (scrollTop + clientHeight >= scrollHeight - 200) {
         const nextPage = page + 1
         setPage(nextPage)
@@ -134,8 +134,8 @@ export default function User({ onEdit, onView }: UserProps) {
     const action = isActive ? 'Disable' : 'Enable'
     const result = await Swal.fire({
       title: `${action} User?`,
-      text: isActive 
-        ? 'User will not be able to login.' 
+      text: isActive
+        ? 'User will not be able to login.'
         : 'User will be able to login.',
       icon: 'warning',
       showCancelButton: true,
@@ -262,13 +262,11 @@ export default function User({ onEdit, onView }: UserProps) {
                   <button
                     onClick={() => canToggle() && toggleUserStatus(user.email, user.isActive)}
                     disabled={!canToggle()}
-                    className={`px-3 py-1 rounded-full text-xs transition ${
-                      canToggle() ? 'hover:scale-105 cursor-pointer' : 'cursor-not-allowed opacity-60'
-                    } ${
-                      user.isActive
+                    className={`px-3 py-1 rounded-full text-xs transition ${canToggle() ? 'hover:scale-105 cursor-pointer' : 'cursor-not-allowed opacity-60'
+                      } ${user.isActive
                         ? 'bg-green-100 text-green-700 hover:bg-green-200'
                         : 'bg-red-100 text-red-700 hover:bg-red-200'
-                    }`}
+                      }`}
                   >
                     {user.isActive ? 'Enabled' : 'Disabled'}
                   </button>
@@ -279,11 +277,9 @@ export default function User({ onEdit, onView }: UserProps) {
                   <button
                     onClick={() => canToggle() && toggleUserStatus(user.email, user.isActive)}
                     disabled={!canToggle()}
-                    className={`${
-                      canToggle() ? 'hover:scale-110 cursor-pointer' : 'cursor-not-allowed opacity-30'
-                    } ${
-                      user.isActive ? 'text-red-500' : 'text-green-500'
-                    }`}
+                    className={`${canToggle() ? 'hover:scale-110 cursor-pointer' : 'cursor-not-allowed opacity-30'
+                      } ${user.isActive ? 'text-red-500' : 'text-green-500'
+                      }`}
                   >
                     {user.isActive ? <Ban size={18} /> : <CheckCircle size={18} />}
                   </button>
@@ -291,9 +287,8 @@ export default function User({ onEdit, onView }: UserProps) {
                   <button
                     onClick={() => canEdit() && handleEdit(user.email)}
                     disabled={!canEdit()}
-                    className={`text-blue-600 ${
-                      canEdit() ? 'hover:scale-110 cursor-pointer' : 'cursor-not-allowed opacity-30'
-                    }`}
+                    className={`text-blue-600 ${canEdit() ? 'hover:scale-110 cursor-pointer' : 'cursor-not-allowed opacity-30'
+                      }`}
                   >
                     <Edit size={18} />
                   </button>
@@ -308,9 +303,8 @@ export default function User({ onEdit, onView }: UserProps) {
                   <button
                     onClick={() => canDelete() && deleteUser(user.email)}
                     disabled={!canDelete()}
-                    className={`text-red-500 ${
-                      canDelete() ? 'hover:scale-110 cursor-pointer' : 'cursor-not-allowed opacity-30'
-                    }`}
+                    className={`text-red-500 ${canDelete() ? 'hover:scale-110 cursor-pointer' : 'cursor-not-allowed opacity-30'
+                      }`}
                   >
                     <Trash2 size={18} />
                   </button>
@@ -325,14 +319,13 @@ export default function User({ onEdit, onView }: UserProps) {
       {/* LOADING */}
       {loading && (
         <div className="flex justify-center py-6">
-          <Loading size="small" color="#3b82f6" />
+          <Loading size="small" />
         </div>
       )}
 
       {!hasMore && users.length > 0 && (
-        <div className={`text-center mt-6 text-sm ${
-          theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
-        }`}>
+        <div className={`text-center mt-6 text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+          }`}>
           No more users to load
         </div>
       )}
