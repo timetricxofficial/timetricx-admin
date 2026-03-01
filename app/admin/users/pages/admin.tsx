@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useTheme } from '../../../../contexts/ThemeContext'
 import { useToast } from '../../../../contexts/ToastContext'
 import { Search, Edit, Eye, Trash2, Ban, CheckCircle } from 'lucide-react'
-import Swal from 'sweetalert2'
+import Dialog from '@/components/ui/Dialog'
 import AddAdmin from '../components/addadmin'
 import ViewAdmin from '../components/viewadmin'
 import EditAdmin from '../components/editadmin'
@@ -39,6 +39,22 @@ export default function Admin() {
   const [showEditAdmin, setShowEditAdmin] = useState(false)
   const [selectedEmail, setSelectedEmail] = useState('')
   const [currentAdmin, setCurrentAdmin] = useState<CurrentAdmin | null>(null)
+
+  const [dialogConfig, setDialogConfig] = useState<{
+    isOpen: boolean,
+    title: string,
+    message: string,
+    type: 'warning' | 'error' | 'info' | 'success',
+    confirmLabel: string,
+    onConfirm: () => void
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    type: 'warning',
+    confirmLabel: '',
+    onConfirm: () => { }
+  })
 
   /* ---------------- GET CURRENT ADMIN FROM API ---------------- */
   useEffect(() => {
@@ -98,58 +114,52 @@ export default function Admin() {
   /* ---------------- TOGGLE ADMIN STATUS ---------------- */
   const toggleAdminStatus = async (email: string, isDisabled: boolean) => {
     const action = isDisabled ? 'Enable' : 'Disable'
-    const result = await Swal.fire({
+    setDialogConfig({
+      isOpen: true,
       title: `${action} Admin?`,
-      text: isDisabled ? 'Admin will be able to login.' : 'Admin will not be able to login.',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#2563eb',
-      cancelButtonColor: '#d33',
-      confirmButtonText: `Yes, ${action}`
+      message: isDisabled ? 'Admin will be able to login.' : 'Admin will not be able to login.',
+      type: 'warning',
+      confirmLabel: `Yes, ${action}`,
+      onConfirm: async () => {
+        try {
+          await fetch('/api/admin/admins/toggle', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email })
+          })
+
+          success(`Admin ${action.toLowerCase()}d successfully`)
+          fetchAdmins()
+        } catch {
+          error(`Failed to ${action.toLowerCase()} admin`)
+        }
+      }
     })
-
-    if (!result.isConfirmed) return
-
-    try {
-      await fetch('/api/admin/admins/toggle', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email })
-      })
-
-      success(`Admin ${action.toLowerCase()}d successfully`)
-      fetchAdmins()
-    } catch {
-      error(`Failed to ${action.toLowerCase()} admin`)
-    }
   }
 
   /* ---------------- DELETE ADMIN ---------------- */
   const deleteAdmin = async (email: string, name: string) => {
-    const result = await Swal.fire({
+    setDialogConfig({
+      isOpen: true,
       title: 'Delete Admin?',
-      html: `Are you sure you want to delete <b>${name}</b>?<br>This action cannot be undone!`,
-      icon: 'error',
-      showCancelButton: true,
-      confirmButtonColor: '#d33',
-      cancelButtonColor: '#2563eb',
-      confirmButtonText: 'Yes, Delete'
+      message: `Are you sure you want to delete ${name}?\nThis action cannot be undone!`,
+      type: 'error',
+      confirmLabel: 'Yes, Delete',
+      onConfirm: async () => {
+        try {
+          await fetch('/api/admin/admins/delete', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email })
+          })
+
+          success('Admin deleted successfully')
+          fetchAdmins()
+        } catch {
+          error('Failed to delete admin')
+        }
+      }
     })
-
-    if (!result.isConfirmed) return
-
-    try {
-      await fetch('/api/admin/admins/delete', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email })
-      })
-
-      success('Admin deleted successfully')
-      fetchAdmins()
-    } catch {
-      error('Failed to delete admin')
-    }
   }
 
   /* ---------------- EDIT ADMIN ---------------- */
@@ -190,8 +200,8 @@ export default function Admin() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className={`w-full pl-10 pr-4 py-2 rounded-lg border outline-none transition-colors ${theme === 'dark'
-                  ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500 focus:border-blue-500'
-                  : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400 focus:border-blue-500'
+                ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500 focus:border-blue-500'
+                : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400 focus:border-blue-500'
                 }`}
             />
           </div>
@@ -202,10 +212,10 @@ export default function Admin() {
           onClick={() => setShowAddAdmin(true)}
           disabled={!canCreate()}
           className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${canCreate()
-              ? theme === 'dark'
-                ? 'bg-blue-600 hover:bg-blue-700 text-white hover:scale-105'
-                : 'bg-blue-500 hover:bg-blue-600 text-white hover:scale-105'
-              : 'bg-gray-400 text-gray-200 cursor-not-allowed'
+            ? theme === 'dark'
+              ? 'bg-blue-600 hover:bg-blue-700 text-white hover:scale-105'
+              : 'bg-blue-500 hover:bg-blue-600 text-white hover:scale-105'
+            : 'bg-gray-400 text-gray-200 cursor-not-allowed'
             }`}
         >
           + Create Admin
@@ -231,8 +241,8 @@ export default function Admin() {
               <tr
                 key={`${admin._id}-${index}`}
                 className={`border-b transition-colors cursor-pointer ${theme === 'dark'
-                    ? 'border-gray-700 hover:bg-gray-700'
-                    : 'border-gray-200 hover:bg-gray-50'
+                  ? 'border-gray-700 hover:bg-gray-700'
+                  : 'border-gray-200 hover:bg-gray-50'
                   }`}
               >
                 <td className="p-3">{admin.name || '-'}</td>
@@ -351,6 +361,17 @@ export default function Admin() {
           onSuccess={() => fetchAdmins()}
         />
       )}
+
+      <Dialog
+        isOpen={dialogConfig.isOpen}
+        onClose={() => setDialogConfig(prev => ({ ...prev, isOpen: false }))}
+        title={dialogConfig.title}
+        message={dialogConfig.message}
+        type={dialogConfig.type as any}
+        confirmLabel={dialogConfig.confirmLabel}
+        onConfirm={dialogConfig.onConfirm}
+      />
     </div>
   )
 }
+

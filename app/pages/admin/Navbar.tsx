@@ -3,8 +3,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { Sun, Moon, LogOut, Settings, User } from 'lucide-react';
 import { useTheme } from '../../../contexts/ThemeContext';
-import Swal from 'sweetalert2';
 import Link from 'next/link';
+import Dialog from '../../../components/ui/Dialog';
 import { usePathname, useRouter } from 'next/navigation';
 import Image from 'next/image';
 
@@ -12,6 +12,7 @@ export default function Navbar() {
   const [user, setUser] = useState<any>(null);
   const [adminProfile, setAdminProfile] = useState<any>(null);
   const [showProfile, setShowProfile] = useState(false);
+  const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const { theme, toggleTheme } = useTheme();
   const pathname = usePathname();
   const router = useRouter();
@@ -84,8 +85,8 @@ export default function Navbar() {
               <button
                 onClick={toggleTheme}
                 className={`p-2 rounded-lg ${theme === 'dark'
-                    ? 'bg-gray-800 text-yellow-400 hover:bg-gray-700'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  ? 'bg-gray-800 text-yellow-400 hover:bg-gray-700'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   } transition-colors`}
               >
                 {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
@@ -142,21 +143,9 @@ export default function Navbar() {
                       </button>
 
                       <button
-                        onClick={async () => {
+                        onClick={() => {
                           setShowProfile(false);
-                          const result = await Swal.fire({
-                            title: 'Logout?',
-                            text: 'Are you sure you want to logout?',
-                            icon: 'question',
-                            showCancelButton: true,
-                            confirmButtonColor: '#ef4444',
-                            cancelButtonColor: '#6b7280',
-                            confirmButtonText: 'Yes, Logout'
-                          });
-                          if (result.isConfirmed) {
-                            localStorage.removeItem('user');
-                            router.push('/');
-                          }
+                          setShowLogoutDialog(true);
                         }}
                         className={`w-full flex items-center space-x-2 px-3 py-2 text-sm ${theme === 'dark' ? 'text-red-400 hover:bg-gray-700' : 'text-red-600 hover:bg-gray-100'
                           } transition-colors`}
@@ -186,6 +175,21 @@ export default function Navbar() {
         }}
       >
       </div>
+
+      <Dialog
+        isOpen={showLogoutDialog}
+        onClose={() => setShowLogoutDialog(false)}
+        title="Logout Confirmation"
+        message="Are you sure you want to logout from your admin account?"
+        type="warning"
+        confirmLabel="Logout"
+        onConfirm={() => {
+          localStorage.removeItem('user');
+          document.cookie = 'adminToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+          document.cookie = 'adminUser=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+          router.push('/admin-auth');
+        }}
+      />
     </>
   );
 }

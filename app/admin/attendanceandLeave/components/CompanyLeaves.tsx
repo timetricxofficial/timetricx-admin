@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useTheme } from '../../../../contexts/ThemeContext'
+import { useToast } from '../../../../contexts/ToastContext'
+import Dialog from '../../../../components/ui/Dialog'
 import { Trash2, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Star, Plus, Upload, X, Loader2, Pencil, Mail, Users, User as UserIcon, Check, Send, Bell, BellOff, Info } from 'lucide-react'
 import { getAllFestivals, Festival } from '../../../../utils/indianHolidays'
 
@@ -17,6 +19,7 @@ interface CompanyHoliday {
 
 export default function CompanyLeaves({ canEdit }: { canEdit: boolean }) {
     const { theme } = useTheme()
+    const toast = useToast()
     const [holidays, setHolidays] = useState<CompanyHoliday[]>([])
     const [loading, setLoading] = useState(true)
     const [adding, setAdding] = useState(false)
@@ -44,6 +47,22 @@ export default function CompanyLeaves({ canEdit }: { canEdit: boolean }) {
     const [loadingUsers, setLoadingUsers] = useState(false)
     const [broadcasting, setBroadcasting] = useState(false)
     const [showAnnounceUserModal, setShowAnnounceUserModal] = useState(false)
+
+    const [dialogConfig, setDialogConfig] = useState<{
+        isOpen: boolean,
+        title: string,
+        message: string,
+        type: 'warning' | 'error' | 'info' | 'success',
+        confirmLabel: string,
+        onConfirm: () => void
+    }>({
+        isOpen: false,
+        title: '',
+        message: '',
+        type: 'warning',
+        confirmLabel: '',
+        onConfirm: () => { }
+    })
 
     const fetchHolidays = async () => {
         try {
@@ -184,41 +203,58 @@ export default function CompanyLeaves({ canEdit }: { canEdit: boolean }) {
         setShowAddModal(false)
     }
 
-    const handleBroadcastAll = async () => {
-        if (!window.confirm("Send upcoming holidays list to selected employees?")) return
-        setBroadcasting(true)
-        try {
-            const res = await fetch('/api/admin/company-holiday/broadcast', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ target: notifyTarget, userIds: selectedUserIds })
-            })
-            const data = await res.json()
-            if (data.success) {
-                alert('Broadcast sent successfully!')
-            } else {
-                alert(data.message || 'Failed to send broadcast')
+    const handleBroadcastAll = () => {
+        setDialogConfig({
+            isOpen: true,
+            title: "Send Broadcast?",
+            message: "Are you sure you want to send the upcoming holidays list to the selected employees?",
+            type: "info",
+            confirmLabel: "Yes, broadcast it!",
+            onConfirm: async () => {
+                setBroadcasting(true)
+                try {
+                    const res = await fetch('/api/admin/company-holiday/broadcast', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ target: notifyTarget, userIds: selectedUserIds })
+                    })
+                    const data = await res.json()
+                    if (data.success) {
+                        toast.success('Holidays broadcast sent successfully!')
+                    } else {
+                        toast.error(data.message || 'Failed to send broadcast')
+                    }
+                } catch (err) {
+                    toast.error('Broadcast failed!')
+                } finally {
+                    setBroadcasting(false)
+                }
             }
-        } catch (err) {
-            alert('Broadcast failed!')
-        } finally {
-            setBroadcasting(false)
-        }
+        })
     }
 
     const handleDelete = async (id: string) => {
-        const confirmDel = window.confirm("Are you sure you want to remove this holiday?")
-        if (!confirmDel) return
-
-        try {
-            const res = await fetch(`/api/admin/company-holiday?id=${id}`, { method: 'DELETE' })
-            const data = await res.json()
-            if (data.success) {
-                setHolidays(holidays.filter(h => h._id !== id))
+        setDialogConfig({
+            isOpen: true,
+            title: "Remove Holiday?",
+            message: "Are you sure you want to remove this holiday? This action cannot be undone.",
+            type: "error",
+            confirmLabel: "Yes, Remove",
+            onConfirm: async () => {
+                try {
+                    const res = await fetch(`/api/admin/company-holiday?id=${id}`, { method: 'DELETE' })
+                    const data = await res.json()
+                    if (data.success) {
+                        setHolidays(holidays.filter(h => h._id !== id))
+                        toast.success('Holiday deleted successfully')
+                    } else {
+                        toast.error('Failed to delete holiday')
+                    }
+                } catch (error) {
+                    toast.error('Failed to delete holiday')
+                }
             }
-        } catch (error) {
-            alert('Failed to delete holiday')
-        }
+        })
     }
 
     /* ================= CALENDAR HELPERS ================= */
@@ -926,6 +962,16 @@ export default function CompanyLeaves({ canEdit }: { canEdit: boolean }) {
                 )}
             </AnimatePresence>
 
+            <Dialog
+                isOpen={dialogConfig.isOpen}
+                onClose={() => setDialogConfig(prev => ({ ...prev, isOpen: false }))}
+                title={dialogConfig.title}
+                message={dialogConfig.message}
+                type={dialogConfig.type as any}
+                confirmLabel={dialogConfig.confirmLabel}
+                onConfirm={dialogConfig.onConfirm}
+            />
         </div>
     )
 }
+

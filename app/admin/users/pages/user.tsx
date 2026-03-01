@@ -6,7 +6,7 @@ import { useTheme } from '../../../../contexts/ThemeContext'
 import { useToast } from '../../../../contexts/ToastContext'
 import EditUser from './components/edit'
 import ViewUser from './components/view'
-import Swal from 'sweetalert2'
+import Dialog from '@/components/ui/Dialog'
 import Loading from '@/components/ui/Loading'
 
 interface UserProps {
@@ -30,6 +30,22 @@ export default function User({ onEdit, onView }: UserProps) {
   const [openEdit, setOpenEdit] = useState(false)
   const [openView, setOpenView] = useState(false)
   const [currentAdmin, setCurrentAdmin] = useState<CurrentAdmin | null>(null)
+
+  const [dialogConfig, setDialogConfig] = useState<{
+    isOpen: boolean,
+    title: string,
+    message: string,
+    type: 'warning' | 'error' | 'info' | 'success',
+    confirmLabel: string,
+    onConfirm: () => void
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    type: 'warning',
+    confirmLabel: '',
+    onConfirm: () => { }
+  })
 
   // 🔥 Get current admin from API (fresh data from DB)
   useEffect(() => {
@@ -132,62 +148,55 @@ export default function User({ onEdit, onView }: UserProps) {
   // TOGGLE ENABLE/DISABLE
   const toggleUserStatus = async (email: string, isActive: boolean) => {
     const action = isActive ? 'Disable' : 'Enable'
-    const result = await Swal.fire({
+
+    setDialogConfig({
+      isOpen: true,
       title: `${action} User?`,
-      text: isActive
-        ? 'User will not be able to login.'
-        : 'User will be able to login.',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#2563eb',
-      cancelButtonColor: '#d33',
-      confirmButtonText: `Yes, ${action}`
+      message: isActive ? 'User will not be able to login.' : 'User will be able to login.',
+      type: 'warning',
+      confirmLabel: `Yes, ${action}`,
+      onConfirm: async () => {
+        try {
+          await fetch('/api/admin/users/disable-user', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email })
+          })
+
+          success(`User ${action.toLowerCase()}d successfully`)
+          setPage(1)
+          fetchUsers(1, false)
+        } catch {
+          error(`Failed to ${action.toLowerCase()} user`)
+        }
+      }
     })
-
-    if (!result.isConfirmed) return
-
-    try {
-      await fetch('/api/admin/users/disable-user', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email })
-      })
-
-      success(`User ${action.toLowerCase()}d successfully`)
-      setPage(1)
-      fetchUsers(1, false)
-    } catch {
-      error(`Failed to ${action.toLowerCase()} user`)
-    }
   }
 
   // DELETE
   const deleteUser = async (email: string) => {
-    const result = await Swal.fire({
+    setDialogConfig({
+      isOpen: true,
       title: 'Delete User?',
-      text: 'This action cannot be undone!',
-      icon: 'error',
-      showCancelButton: true,
-      confirmButtonColor: '#d33',
-      cancelButtonColor: '#2563eb',
-      confirmButtonText: 'Yes, Delete'
+      message: 'This action cannot be undone!',
+      type: 'error',
+      confirmLabel: 'Yes, Delete',
+      onConfirm: async () => {
+        try {
+          await fetch('/api/admin/users/delete-user', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email })
+          })
+
+          success('User deleted successfully')
+          setPage(1)
+          fetchUsers(1, false)
+        } catch {
+          error('Failed to delete user')
+        }
+      }
     })
-
-    if (!result.isConfirmed) return
-
-    try {
-      await fetch('/api/admin/users/delete-user', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email })
-      })
-
-      success('User deleted successfully')
-      setPage(1)
-      fetchUsers(1, false)
-    } catch {
-      error('Failed to delete user')
-    }
   }
 
   // EDIT
@@ -344,6 +353,16 @@ export default function User({ onEdit, onView }: UserProps) {
           close={() => setOpenView(false)}
         />
       )}
+
+      <Dialog
+        isOpen={dialogConfig.isOpen}
+        onClose={() => setDialogConfig(prev => ({ ...prev, isOpen: false }))}
+        title={dialogConfig.title}
+        message={dialogConfig.message}
+        type={dialogConfig.type as any}
+        confirmLabel={dialogConfig.confirmLabel}
+        onConfirm={dialogConfig.onConfirm}
+      />
     </div>
   )
 }
