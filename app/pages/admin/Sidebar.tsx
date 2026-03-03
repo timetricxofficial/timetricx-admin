@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { LayoutDashboard, Users, Folder, Settings, Calendar, Camera, Video } from "lucide-react"
+import { LayoutDashboard, Users, Folder, Settings, Calendar, Camera, Video, Megaphone } from "lucide-react"
 import { useTheme } from "../../../contexts/ThemeContext"
 import { meet } from "googleapis/build/src/apis/meet"
 
@@ -10,8 +10,9 @@ const menu = [
   { name: "Dashboard", icon: LayoutDashboard, path: "/admin/dashboard" },
   { name: "Users", icon: Users, path: "/admin/users" },
   { name: "Projects", icon: Folder, path: "/admin/projects" },
-  { name: "meetings", icon: Video , path: "/admin/meetings"},
-  { name: "Attendance & Leave", icon: Calendar, path: "/admin/attendanceandLeave" }
+  { name: "meetings", icon: Video, path: "/admin/meetings" },
+  { name: "Attendance & Leave", icon: Calendar, path: "/admin/attendanceandLeave" },
+  { name: "Announcements", icon: Megaphone, path: "/admin/announcements" }
 ]
 
 export default function Sidebar() {
@@ -21,10 +22,10 @@ export default function Sidebar() {
   return (
     <>
       {/* Glow Background */}
-      <div 
+      <div
         className="fixed left-4 top-25 h-[520px] w-24 rounded-xl"
         style={{
-          background: theme === 'dark' 
+          background: theme === 'dark'
             ? "linear-gradient(90deg, #6366f17a 0%, transparent 100%)"
             : "linear-gradient(90deg, #3b82f67a 0%, transparent 100%)",
           filter: "blur(20px)",
@@ -61,7 +62,7 @@ export default function Sidebar() {
         `}
       >
 
-        
+
 
         {/* Menu */}
         <div className="flex flex-col gap-3 mt-30 flex-1">
@@ -77,7 +78,7 @@ export default function Sidebar() {
                   flex items-center justify-center
                   transition-all duration-300
 
-                  ${isActive 
+                  ${isActive
                     ? "bg-indigo-500 text-white shadow-[0_0_20px_#6366f1]"
                     : theme === 'dark'
                       ? "text-gray-300 hover:bg-gray-700"
