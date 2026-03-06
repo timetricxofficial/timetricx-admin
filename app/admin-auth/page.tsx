@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Cookies from 'js-cookie';
 import { Eye, EyeOff, ShieldCheck, Lock, ArrowLeft, Send, CheckCircle2 } from 'lucide-react';
@@ -23,6 +23,7 @@ export default function AdminLogin() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
   const [submitAttempted, setSubmitAttempted] = useState(false);
 
   // Forgot Password States
@@ -30,7 +31,7 @@ export default function AdminLogin() {
   const [forgotEmail, setForgotEmail] = useState('');
   const [otpSent, setOtpSent] = useState(false);
   const [otpVerified, setOtpVerified] = useState(false);
-  const [otp, setOtp] = useState('');
+  const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [newPassword, setNewPassword] = useState('');
   const [resetToken, setResetToken] = useState('');
 
@@ -91,17 +92,16 @@ export default function AdminLogin() {
     }
   };
 
-  const handleVerifyOtp = async () => {
-    if (!otp) {
-      error('OTP required');
-      return;
-    }
+  const handleVerifyOtp = useCallback(async (codeToUse?: string) => {
+    const otpValue = codeToUse || otp.join('');
+    if (otpValue.length !== 6) return;
+
     setLoading(true);
     try {
       const res = await fetch('/api/admin/auth/forgot-password/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: forgotEmail, otp, token: resetToken })
+        body: JSON.stringify({ email: forgotEmail, otp: otpValue, token: resetToken })
       });
       const data = await res.json();
       if (data.success) {
@@ -109,13 +109,22 @@ export default function AdminLogin() {
         setOtpVerified(true);
       } else {
         error(data.message || 'Invalid OTP');
+        setOtp(['', '', '', '', '', '']);
       }
     } catch (err) {
       error('Verification failed');
     } finally {
       setLoading(false);
     }
-  };
+  }, [otp, forgotEmail, resetToken]);
+
+  // 🔥 Auto-verify admin OTP
+  useEffect(() => {
+    const fullCode = otp.join('');
+    if (fullCode.length === 6 && !loading && otpSent && !otpVerified) {
+      handleVerifyOtp(fullCode);
+    }
+  }, [otp, loading, otpSent, otpVerified, handleVerifyOtp]);
 
   const handleResetPassword = async () => {
     if (!newPassword || newPassword.length < 6) {
@@ -248,10 +257,11 @@ export default function AdminLogin() {
                       <input
                         type={showPassword ? 'text' : 'password'}
                         placeholder="Enter Access Key"
+                        disabled={loading}
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
-                        className="w-full px-6 py-5 rounded-[24px] bg-[#0d0d0d] border border-[#1a1a1a] focus:border-blue-500 outline-none transition-all duration-500 text-sm font-medium tracking-widest pr-14"
+                        className={`w-full px-6 py-5 rounded-[24px] bg-[#0d0d0d] border border-[#1a1a1a] focus:border-blue-500 outline-none transition-all duration-500 text-sm font-medium tracking-widest pr-14 ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
                       />
                       <button
                         type="button"
@@ -328,23 +338,48 @@ export default function AdminLogin() {
                       <h2 className="text-3xl font-extrabold mb-3">Verification</h2>
                       <p className="text-gray-500 text-sm">A 6-digit code has been sent to your administrator email.</p>
                     </div>
-                    <div>
-                      <label className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3 block ml-1">Enter Token</label>
-                      <input
-                        type="text"
-                        maxLength={6}
-                        placeholder="000000"
-                        value={otp}
-                        onChange={(e) => setOtp(e.target.value)}
-                        className="w-full px-6 py-5 rounded-[24px] bg-[#0d0d0d] border border-[#1a1a1a] focus:border-blue-500 outline-none transition-all text-center text-2xl font-black tracking-[1em]"
-                      />
+                    <div className="flex justify-center gap-2 mb-6">
+                      {otp.map((digit, i) => (
+                        <input
+                          key={i}
+                          type="text"
+                          maxLength={1}
+                          value={digit}
+                          className="w-11 h-14 text-center text-xl font-black bg-[#0d0d0d] border border-[#1a1a1a] rounded-xl focus:border-blue-500 outline-none transition-all text-white"
+                          onPaste={(e) => {
+                            e.preventDefault();
+                            const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+                            if (pasted.length > 0) {
+                              const newCode = [...otp];
+                              for (let j = 0; j < 6; j++) { newCode[j] = pasted[j] || ''; }
+                              setOtp(newCode);
+                              const lastIdx = Math.min(pasted.length - 1, 5);
+                              (e.currentTarget.parentElement?.children[lastIdx] as HTMLInputElement)?.focus();
+                            }
+                          }}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/\D/g, '');
+                            const newCode = [...otp];
+                            newCode[i] = val;
+                            setOtp(newCode);
+                            if (val && i < 5) (e.target.parentElement?.children[i + 1] as HTMLInputElement)?.focus();
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Backspace' && !otp[i] && i > 0) {
+                              (e.currentTarget.parentElement?.children[i - 1] as HTMLInputElement)?.focus();
+                            }
+                          }}
+                        />
+                      ))}
                     </div>
-                    <button
-                      onClick={handleVerifyOtp}
-                      className="w-full py-5 rounded-[24px] bg-white text-black text-[14px] font-black hover:bg-gray-200 transition-all uppercase tracking-widest"
-                    >
-                      Verify Now
-                    </button>
+                    <div className="h-10 mb-4 flex items-center justify-center">
+                      {loading && (
+                        <div className="flex items-center gap-2 text-blue-500 font-bold animate-pulse">
+                          <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                          Verifying...
+                        </div>
+                      )}
+                    </div>
                     <button onClick={handleRequestOtp} className="w-full text-xs text-blue-400 font-bold uppercase tracking-widest">Resend Token</button>
                   </div>
                 ) : (
@@ -357,15 +392,21 @@ export default function AdminLogin() {
                       <h2 className="text-3xl font-extrabold mb-3">Set New Access</h2>
                       <p className="text-gray-500 text-sm">Security verified. Define your new master access key.</p>
                     </div>
-                    <div>
-                      <label className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3 block ml-1">New Password</label>
+                    <div className="relative">
                       <input
-                        type="password"
+                        type={showNewPassword ? 'text' : 'password'}
                         placeholder="••••••••"
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
-                        className="w-full px-6 py-5 rounded-[24px] bg-[#0d0d0d] border border-[#1a1a1a] focus:border-blue-500 outline-none transition-all text-sm font-medium"
+                        className="w-full px-6 py-5 rounded-[24px] bg-[#0d0d0d] border border-[#1a1a1a] focus:border-blue-500 outline-none transition-all text-sm font-medium pr-14"
                       />
+                      <button
+                        type="button"
+                        onClick={() => setShowNewPassword(!showNewPassword)}
+                        className="absolute right-5 top-1/2 -translate-y-1/2 text-gray-600 hover:text-white transition-colors"
+                      >
+                        {showNewPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                      </button>
                     </div>
                     <button
                       onClick={handleResetPassword}
