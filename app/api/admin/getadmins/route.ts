@@ -1,10 +1,17 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import connectDB from '@/lib/database'
 import { Admin } from '@/models/Admin'
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     await connectDB()
+
+    const { searchParams } = new URL(req.url)
+    const page = parseInt(searchParams.get('page') || '1')
+    const limit = parseInt(searchParams.get('limit') || '10')
+    const skip = (page - 1) * limit
+
+    const total = await Admin.countDocuments()
 
     const admins = await Admin.find({}, {
       name: 1,
@@ -17,11 +24,21 @@ export async function GET() {
       isDisabled: 1,
       createdAt: 1,
       updatedAt: 1
-    }).sort({ createdAt: -1 }).lean()
+    })
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean()
 
     return NextResponse.json({
       success: true,
-      data: admins
+      data: admins,
+      pagination: {
+        total,
+        page,
+        totalPages: Math.ceil(total / limit),
+        hasMore: skip + admins.length < total
+      }
     })
 
   } catch (err) {

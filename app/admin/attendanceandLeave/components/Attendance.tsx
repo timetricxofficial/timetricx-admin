@@ -1,14 +1,15 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useTheme } from '../../../../contexts/ThemeContext'
-import { Eye, Trash2 } from 'lucide-react'
+import { Eye, Trash2, Filter } from 'lucide-react'
 
 interface AttendanceData {
   _id: string
   userEmail: string
   months: any[]
+  isEmailVerified?: boolean
 }
 
 interface AttendanceProps {
@@ -17,29 +18,39 @@ interface AttendanceProps {
 }
 
 import Skeleton from '../../../../components/ui/Skeleton'
+import { useInfiniteScroll } from '../../../../hooks/useInfiniteScroll'
 
 export default function Attendance({ canEdit = false, canDelete = false }: AttendanceProps) {
   const { theme } = useTheme()
 
   const [data, setData] = useState<AttendanceData[]>([])
-  const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(false)
-  const [hasMore, setHasMore] = useState(true)
   const [selected, setSelected] = useState<any>(null)
   const [weekendRequests, setWeekendRequests] = useState<any[]>([])
   const [leaves, setLeaves] = useState<any[]>([])
   const [companyHolidays, setCompanyHolidays] = useState<any[]>([])
+  const [verifiedFilter, setVerifiedFilter] = useState<'all' | 'verified' | 'not-verified'>('all')
 
+  const [page, setPage] = useState(1)
+  const [hasMore, setHasMore] = useState(true)
+  const loadingRef = useRef(false)
   const limit = 10
 
+  const observerTarget = useInfiniteScroll({
+    loading,
+    hasMore,
+    onLoadMore: () => setPage(p => p + 1)
+  })
+
   /* ================= FETCH (Infinite Scroll) ================= */
-  const fetchAttendance = useCallback(async (pageNum: number, append: boolean = false) => {
-    if (loading) return
+  const fetchAttendance = useCallback(async (pageNum: number, append: boolean = false, filter: string = verifiedFilter) => {
+    if (loadingRef.current) return
+    loadingRef.current = true
     setLoading(true)
 
     try {
       const res = await fetch(
-        `/api/admin/Attendance/getuserattendance?page=${pageNum}&limit=${limit}`
+        `/api/admin/Attendance/getuserattendance?page=${pageNum}&limit=${limit}&verified=${filter}`
       )
       const result = await res.json()
 
@@ -58,9 +69,10 @@ export default function Attendance({ canEdit = false, canDelete = false }: Atten
     } catch {
       console.error('Failed to fetch attendance')
     } finally {
+      loadingRef.current = false
       setLoading(false)
     }
-  }, [loading])
+  }, [verifiedFilter])
 
   /* ================= TOTAL COUNT ================= */
 
@@ -107,30 +119,24 @@ export default function Attendance({ canEdit = false, canDelete = false }: Atten
     return { monthIndex, year }
   }
 
-  // Initial load
+  // When page changes > 1, load more
   useEffect(() => {
-    fetchAttendance(1, false)
-  }, [])
-
-  // Auto load more on scroll
-  useEffect(() => {
-    const handleScroll = () => {
-      if (loading || !hasMore) return
-
-      const scrollTop = window.scrollY || document.documentElement.scrollTop
-      const scrollHeight = document.documentElement.scrollHeight
-      const clientHeight = window.innerHeight
-
-      if (scrollTop + clientHeight >= scrollHeight - 200) {
-        const nextPage = page + 1
-        setPage(nextPage)
-        fetchAttendance(nextPage, true)
-      }
+    if (page > 1) {
+      fetchAttendance(page, true)
     }
+  }, [page, fetchAttendance])
 
-    window.addEventListener('scroll', handleScroll)
-    return () => window.removeEventListener('scroll', handleScroll)
-  }, [loading, hasMore, page, fetchAttendance])
+  // Initial load and re-fetch when filter changes
+  useEffect(() => {
+    // Only reset if filter actually changed
+    // or if we have no data yet
+    if (data.length === 0 || page === 1) {
+      // setData([]) // Don't clear if we're just mounting
+      setPage(1)
+      setHasMore(true)
+      fetchAttendance(1, false, verifiedFilter)
+    }
+  }, [verifiedFilter, fetchAttendance])
 
   useEffect(() => {
     if (selected?.userEmail) {
@@ -163,6 +169,26 @@ export default function Attendance({ canEdit = false, canDelete = false }: Atten
   return (
     <div className="mt-8">
 
+      {/* VERIFICATION FILTER DROPDOWN */}
+      <div className="mb-4 flex items-center gap-3">
+        <div className="relative">
+          <Filter className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
+          <select
+            value={verifiedFilter}
+            onChange={(e) => setVerifiedFilter(e.target.value as any)}
+            className={`pl-9 pr-4 py-2 rounded-lg border appearance-none cursor-pointer text-sm font-medium transition-all
+              ${theme === 'dark'
+                ? 'bg-gray-800 border-gray-700 text-white'
+                : 'bg-white border-gray-300 text-gray-900'
+              }`}
+          >
+            <option value="all">All Users</option>
+            <option value="verified">✅ Verified</option>
+            <option value="not-verified">❌ Not Verified</option>
+          </select>
+        </div>
+      </div>
+
       {/* ================= TABLE ================= */}
 
       <div className={`overflow-x-auto rounded-xl border transition-colors ${theme === 'dark'
@@ -178,6 +204,7 @@ export default function Attendance({ canEdit = false, canDelete = false }: Atten
             <tr>
               <th className={`p-3 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>S.No</th>
               <th className={`p-3 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Email</th>
+              <th className={`p-3 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Verified</th>
               <th className={`p-3 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Total Attendance</th>
               <th className={`p-3 text-center ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Action</th>
             </tr>
@@ -187,16 +214,28 @@ export default function Attendance({ canEdit = false, canDelete = false }: Atten
             {data.map((item, index) => (
               <tr
                 key={item._id}
-                className={`border-b transition-colors ${theme === 'dark'
-                  ? 'border-gray-700 hover:bg-gray-700/40'
-                  : 'border-gray-200 hover:bg-gray-50'
+                className={`border-b transition-colors ${!(item as any).isEmailVerified
+                  ? theme === 'dark' ? 'border-red-900/30 bg-red-950/20' : 'border-red-200 bg-red-50/50'
+                  : theme === 'dark'
+                    ? 'border-gray-700 hover:bg-gray-700/40'
+                    : 'border-gray-200 hover:bg-gray-50'
                   }`}
               >
-                <td className={`p-3 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                <td className={`p-3 ${!(item as any).isEmailVerified ? 'text-red-500' : theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
                   {index + 1}
                 </td>
 
-                <td className={`p-3 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{item.userEmail}</td>
+                <td className={`p-3 ${!(item as any).isEmailVerified ? 'text-red-500' : theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{item.userEmail}</td>
+
+                <td className="p-3">
+                  <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
+                    (item as any).isEmailVerified
+                      ? 'bg-green-100 text-green-700'
+                      : 'bg-red-100 text-red-600'
+                  }`}>
+                    {(item as any).isEmailVerified ? '✅ Verified' : '❌ Not Verified'}
+                  </span>
+                </td>
 
                 <td className={`p-3 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
                   {getTotalAttendance(item.months)}
@@ -227,7 +266,9 @@ export default function Attendance({ canEdit = false, canDelete = false }: Atten
         </table>
       </div>
 
-      {!hasMore && data.length > 0 && !loading && (
+      <div ref={observerTarget} className="h-10 w-full" />
+
+      {!loading && data.length > 0 && !hasMore && (
         <div className={`text-center mt-6 text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
           No more attendance to load
         </div>

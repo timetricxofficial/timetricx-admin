@@ -1,10 +1,17 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import connectDB from '../../../../../lib/database'
 import { Project } from '../../../../../models/Project'
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     await connectDB()
+
+    const { searchParams } = new URL(req.url)
+    const page = parseInt(searchParams.get('page') || '1')
+    const limit = parseInt(searchParams.get('limit') || '10')
+    const skip = (page - 1) * limit
+
+    const total = await Project.countDocuments()
 
     const projects = await Project.find(
       {},
@@ -16,11 +23,19 @@ export async function GET() {
       }
     )
       .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
       .lean()
 
     return NextResponse.json({
       success: true,
-      data: projects
+      data: projects,
+      pagination: {
+        total,
+        page,
+        totalPages: Math.ceil(total / limit),
+        hasMore: skip + projects.length < total
+      }
     })
   } catch (err) {
     console.error(err)

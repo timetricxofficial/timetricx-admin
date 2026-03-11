@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useTheme } from '../../../../contexts/ThemeContext'
 import { useToast } from '../../../../contexts/ToastContext'
 import { Search, Edit, Eye, Trash2, Ban, CheckCircle } from 'lucide-react'
@@ -8,6 +8,7 @@ import Dialog from '@/components/ui/Dialog'
 import AddAdmin from '../components/addadmin'
 import ViewAdmin from '../components/viewadmin'
 import EditAdmin from '../components/editadmin'
+import { useInfiniteScroll } from '../../../../hooks/useInfiniteScroll'
 
 interface AdminData {
   _id: string
@@ -32,13 +33,24 @@ export default function Admin() {
   const { theme } = useTheme()
   const { success, error } = useToast()
   const [admins, setAdmins] = useState<AdminData[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
+  const [page, setPage] = useState(1)
+  const [hasMore, setHasMore] = useState(true)
+  const loadingRef = useRef(false)
+  const limit = 10
+  
   const [search, setSearch] = useState('')
   const [showAddAdmin, setShowAddAdmin] = useState(false)
   const [showViewAdmin, setShowViewAdmin] = useState(false)
   const [showEditAdmin, setShowEditAdmin] = useState(false)
   const [selectedEmail, setSelectedEmail] = useState('')
   const [currentAdmin, setCurrentAdmin] = useState<CurrentAdmin | null>(null)
+  
+  const observerTarget = useInfiniteScroll({
+    loading,
+    hasMore,
+    onLoadMore: () => setPage(p => p + 1)
+  })
 
   const [dialogConfig, setDialogConfig] = useState<{
     isOpen: boolean,
@@ -90,26 +102,51 @@ export default function Admin() {
   const canCreate = () => isSuperAdminWithEdit()
 
   /* ---------------- FETCH ADMINS ---------------- */
+  // When page changes > 1, load more
   useEffect(() => {
-    fetchAdmins()
+    if (page > 1) {
+      fetchAdmins(page, true)
+    }
+  }, [page])
+
+  // Initial load
+  useEffect(() => {
+    // Only fetch if it's the first time
+    if (page === 1 && admins.length === 0) {
+      fetchAdmins(1, false)
+    }
   }, [])
 
-  const fetchAdmins = async () => {
+  const fetchAdmins = async (pageNum: number = 1, append: boolean = false) => {
+    if (loadingRef.current) return
+    loadingRef.current = true
     setLoading(true)
     try {
-      const res = await fetch('/api/admin/getadmins')
+      const res = await fetch(`/api/admin/getadmins?page=${pageNum}&limit=${limit}`)
       const data = await res.json()
 
       if (data.success) {
-        setAdmins(data.data || [])
+        if (append) {
+          setAdmins(prev => {
+            const existingIds = new Set(prev.map(a => a._id))
+            const newAdmins = data.data.filter((a: any) => !existingIds.has(a._id))
+            return [...prev, ...newAdmins]
+          })
+        } else {
+          setAdmins(data.data || [])
+        }
+        setHasMore(data.pagination?.hasMore ?? false)
       }
     } catch (err) {
       console.error('Failed to fetch admins', err)
       error('Failed to fetch admins')
     } finally {
+      loadingRef.current = false
       setLoading(false)
     }
   }
+
+
 
   /* ---------------- TOGGLE ADMIN STATUS ---------------- */
   const toggleAdminStatus = async (email: string, isDisabled: boolean) => {
@@ -129,7 +166,11 @@ export default function Admin() {
           })
 
           success(`Admin ${action.toLowerCase()}d successfully`)
-          fetchAdmins()
+          
+          // ✅ Local state update instead of full fetch
+          setAdmins(prev => prev.map(a => 
+            a.email === email ? { ...a, isDisabled: !isDisabled } : a
+          ))
         } catch {
           error(`Failed to ${action.toLowerCase()} admin`)
         }
@@ -154,7 +195,9 @@ export default function Admin() {
           })
 
           success('Admin deleted successfully')
-          fetchAdmins()
+          
+          // ✅ Local state update instead of full fetch
+          setAdmins(prev => prev.filter(a => a.email !== email))
         } catch {
           error('Failed to delete admin')
         }
@@ -332,16 +375,23 @@ export default function Admin() {
         </table>
       </div>
 
+      <div ref={observerTarget} className="h-10 w-full" />
+
       {/* COUNT */}
-      <div className="mt-4 text-sm text-gray-500">
-        Showing {filtered.length} of {admins.length} admins
+      <div className="mt-4 text-sm text-gray-500 flex justify-between">
+        <span>Showing {filtered.length} visible admins</span>
+        {!loading && admins.length > 0 && !hasMore && <span>End of list reached</span>}
       </div>
 
       {/* ADD ADMIN MODAL */}
       {showAddAdmin && (
         <AddAdmin
           close={() => setShowAddAdmin(false)}
-          onSuccess={() => fetchAdmins()}
+          onSuccess={() => {
+            setPage(1)
+            setHasMore(true)
+            fetchAdmins(1, false)
+          }}
         />
       )}
 
@@ -358,7 +408,11 @@ export default function Admin() {
         <EditAdmin
           email={selectedEmail}
           close={() => setShowEditAdmin(false)}
-          onSuccess={() => fetchAdmins()}
+          onSuccess={() => {
+            setPage(1)
+            setHasMore(true)
+            fetchAdmins(1, false)
+          }}
         />
       )}
 

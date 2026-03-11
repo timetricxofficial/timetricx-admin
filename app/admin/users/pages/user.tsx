@@ -1,13 +1,14 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
-import { Search, Eye, Edit, Ban, Trash2, CheckCircle } from 'lucide-react'
+import { useEffect, useState, useCallback, useRef } from 'react'
+import { Search, Eye, Edit, Ban, Trash2, CheckCircle, Filter } from 'lucide-react'
 import { useTheme } from '../../../../contexts/ThemeContext'
 import { useToast } from '../../../../contexts/ToastContext'
 import EditUser from './components/edit'
 import ViewUser from './components/view'
 import Dialog from '@/components/ui/Dialog'
 import Loading from '@/components/ui/Loading'
+import { useInfiniteScroll } from '../../../../hooks/useInfiniteScroll'
 
 interface UserProps {
   onEdit?: (email: string) => void
@@ -26,6 +27,7 @@ export default function User({ onEdit, onView }: UserProps) {
   const [users, setUsers] = useState<any[]>([])
   const [search, setSearch] = useState('')
   const [selectedEmail, setSelectedEmail] = useState('')
+  const [verifiedFilter, setVerifiedFilter] = useState<'all' | 'verified' | 'not-verified'>('all')
 
   const [openEdit, setOpenEdit] = useState(false)
   const [openView, setOpenView] = useState(false)
@@ -78,63 +80,70 @@ export default function User({ onEdit, onView }: UserProps) {
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(false)
   const [hasMore, setHasMore] = useState(true)
+  const loadingRef = useRef(false)
   const limit = 10
 
+  const observerTarget = useInfiniteScroll({
+    loading,
+    hasMore,
+    onLoadMore: () => setPage(p => p + 1)
+  })
+
   /* ================= FETCH (Infinite Scroll) ================= */
-  const fetchUsers = useCallback(async (pageNum: number, append: boolean = false) => {
-    if (loading) return
+  const fetchUsers = useCallback(async (pageNum: number, append: boolean = false, filter: string = verifiedFilter) => {
+    if (loadingRef.current) return
+    loadingRef.current = true
     setLoading(true)
 
     try {
-      const res = await fetch(`/api/admin/users/get-all-users?page=${pageNum}&limit=${limit}`)
+      const res = await fetch(`/api/admin/users/get-all-users?page=${pageNum}&limit=${limit}&verified=${filter}`)
       const data = await res.json()
 
       if (data.success) {
-        // Filter only non-admin users
-        const nonAdminUsers = data.data.filter((u: any) => u.role !== 'admin' && !u.email.includes('admin'))
-
         if (append) {
           setUsers(prev => {
             const existingIds = new Set(prev.map((u: any) => u._id))
-            const newUsers = nonAdminUsers.filter((u: any) => !existingIds.has(u._id))
+            const newUsers = data.data.filter((u: any) => !existingIds.has(u._id))
             return [...prev, ...newUsers]
           })
         } else {
-          setUsers(nonAdminUsers)
+          setUsers(data.data)
         }
         setHasMore(data.pagination.hasMore)
       }
     } catch {
       error('Failed to fetch users')
     } finally {
+      loadingRef.current = false
       setLoading(false)
     }
-  }, [loading, error])
+  }, [verifiedFilter])
+
+  // When page changes > 1, load more
+  useEffect(() => {
+    if (page > 1) {
+      fetchUsers(page, true)
+    }
+  }, [page, fetchUsers])
 
   // Initial load
   useEffect(() => {
-    fetchUsers(1, false)
+    // Only fetch if it's the first time and filter is 'all' (initial state)
+    // The filter useEffect handles the initial fetch otherwise
+    if (page === 1 && users.length === 0) {
+      fetchUsers(1, false)
+    }
   }, [])
 
-  // Auto load more on scroll
+  // Re-fetch when filter changes
   useEffect(() => {
-    const handleScroll = () => {
-      if (loading || !hasMore) return
+    setUsers([])
+    setPage(1)
+    setHasMore(true)
+    fetchUsers(1, false, verifiedFilter)
+  }, [verifiedFilter, fetchUsers])
 
-      const scrollTop = window.scrollY || document.documentElement.scrollTop
-      const scrollHeight = document.documentElement.scrollHeight
-      const clientHeight = window.innerHeight
 
-      if (scrollTop + clientHeight >= scrollHeight - 200) {
-        const nextPage = page + 1
-        setPage(nextPage)
-        fetchUsers(nextPage, true)
-      }
-    }
-
-    window.addEventListener('scroll', handleScroll)
-    return () => window.removeEventListener('scroll', handleScroll)
-  }, [loading, hasMore, page, fetchUsers])
 
   /* ================= SEARCH ================= */
   const filteredUsers = users.filter(user =>
@@ -164,8 +173,11 @@ export default function User({ onEdit, onView }: UserProps) {
           })
 
           success(`User ${action.toLowerCase()}d successfully`)
-          setPage(1)
-          fetchUsers(1, false)
+          
+          // ✅ Local state update instead of full fetch
+          setUsers(prev => prev.map(u => 
+            u.email === email ? { ...u, isActive: !isActive } : u
+          ))
         } catch {
           error(`Failed to ${action.toLowerCase()} user`)
         }
@@ -190,8 +202,9 @@ export default function User({ onEdit, onView }: UserProps) {
           })
 
           success('User deleted successfully')
-          setPage(1)
-          fetchUsers(1, false)
+          
+          // ✅ Local state update instead of full fetch
+          setUsers(prev => prev.filter(u => u.email !== email))
         } catch {
           error('Failed to delete user')
         }
@@ -221,7 +234,7 @@ export default function User({ onEdit, onView }: UserProps) {
 
   return (
     <div>
-      {/* SEARCH */}
+      {/* SEARCH + FILTER */}
       <div className="mb-4 flex items-center gap-3">
         <div className="relative w-72">
           <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
@@ -236,6 +249,24 @@ export default function User({ onEdit, onView }: UserProps) {
               }`}
           />
         </div>
+
+        {/* VERIFICATION FILTER DROPDOWN */}
+        <div className="relative">
+          <Filter className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
+          <select
+            value={verifiedFilter}
+            onChange={(e) => setVerifiedFilter(e.target.value as any)}
+            className={`pl-9 pr-4 py-2 rounded-lg border appearance-none cursor-pointer text-sm font-medium transition-all
+              ${theme === 'dark'
+                ? 'bg-gray-800 border-gray-700 text-white'
+                : 'bg-white border-gray-300 text-gray-900'
+              }`}
+          >
+            <option value="all">All Users</option>
+            <option value="verified">✅ Verified</option>
+            <option value="not-verified">❌ Not Verified</option>
+          </select>
+        </div>
       </div>
 
       {/* TABLE */}
@@ -248,6 +279,7 @@ export default function User({ onEdit, onView }: UserProps) {
               <th className="p-3 text-left">Name</th>
               <th className="p-3 text-left">Email</th>
               <th className="p-3 text-left">Mobile</th>
+              <th className="p-3 text-left">Verified</th>
               <th className="p-3 text-left">Status</th>
               <th className="p-3 text-center">Action</th>
             </tr>
@@ -258,14 +290,26 @@ export default function User({ onEdit, onView }: UserProps) {
               <tr
                 key={`${user._id}-${index}`}
                 className={`border-b transition-colors cursor-pointer
-                  ${theme === 'dark'
-                    ? 'border-gray-700 hover:bg-gray-700'
-                    : 'border-gray-200 hover:bg-gray-50'
+                  ${!user.isEmailVerified
+                    ? theme === 'dark' ? 'border-red-900/30 bg-red-950/20' : 'border-red-200 bg-red-50/50'
+                    : theme === 'dark'
+                      ? 'border-gray-700 hover:bg-gray-700'
+                      : 'border-gray-200 hover:bg-gray-50'
                   }`}
               >
-                <td className="p-3">{user.name}</td>
-                <td className="p-3">{user.email}</td>
+                <td className={`p-3 ${!user.isEmailVerified ? 'text-red-500' : ''}`}>{user.name}</td>
+                <td className={`p-3 ${!user.isEmailVerified ? 'text-red-500' : ''}`}>{user.email}</td>
                 <td className="p-3">{user.mobileNumber || '-'}</td>
+
+                <td className="p-3">
+                  <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
+                    user.isEmailVerified
+                      ? 'bg-green-100 text-green-700'
+                      : 'bg-red-100 text-red-600'
+                  }`}>
+                    {user.isEmailVerified ? '✅ Verified' : '❌ Not Verified'}
+                  </span>
+                </td>
 
                 <td className="p-3">
                   <button
@@ -325,6 +369,8 @@ export default function User({ onEdit, onView }: UserProps) {
         </table>
       </div>
 
+      <div ref={observerTarget} className="h-10 w-full" />
+
       {/* LOADING */}
       {loading && (
         <div className="flex justify-center py-6">
@@ -332,7 +378,7 @@ export default function User({ onEdit, onView }: UserProps) {
         </div>
       )}
 
-      {!hasMore && users.length > 0 && (
+      {!loading && users.length > 0 && !hasMore && (
         <div className={`text-center mt-6 text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
           }`}>
           No more users to load

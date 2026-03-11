@@ -1,8 +1,9 @@
 'use client'
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { useTheme } from "../../../contexts/ThemeContext"
 import { motion, AnimatePresence } from "framer-motion"
 import { Megaphone, CheckCircle, XCircle, Clock, Edit3 } from "lucide-react"
+import { useInfiniteScroll } from "../../../hooks/useInfiniteScroll"
 
 interface HolidayRequest {
     _id: string;
@@ -20,26 +21,61 @@ interface HolidayRequest {
 export default function Announcements() {
     const { theme } = useTheme()
     const [requests, setRequests] = useState<HolidayRequest[]>([])
-    const [loading, setLoading] = useState(true)
+    const [loading, setLoading] = useState(false)
     const [editingId, setEditingId] = useState<string | null>(null)
 
-    const fetchRequests = async () => {
+    const [page, setPage] = useState(1)
+    const [hasMore, setHasMore] = useState(true)
+    const loadingRef = useRef(false)
+    const limit = 10
+
+    const observerTarget = useInfiniteScroll({
+        loading,
+        hasMore,
+        onLoadMore: () => setPage(p => p + 1)
+    })
+
+    const fetchRequests = async (pageNum: number = 1, append: boolean = false) => {
+        if (loadingRef.current) return
+        loadingRef.current = true
+        setLoading(true)
         try {
-            const res = await fetch("/api/admin/holiday-requests", { cache: 'no-store' })
+            const res = await fetch(`/api/admin/holiday-requests?page=${pageNum}&limit=${limit}`, { cache: 'no-store' })
             const data = await res.json()
             if (data.success) {
-                setRequests(data.data)
+                if (append) {
+                    setRequests(prev => {
+                        const existingIds = new Set(prev.map(r => r._id))
+                        const newRequests = data.data.filter((r: any) => !existingIds.has(r._id))
+                        return [...prev, ...newRequests]
+                    })
+                } else {
+                    setRequests(data.data || [])
+                }
+                setHasMore(data.pagination?.hasMore ?? false)
             }
         } catch (err) {
             console.error(err)
         } finally {
+            loadingRef.current = false
             setLoading(false)
         }
     }
 
+    // When page changes > 1, load more
     useEffect(() => {
-        fetchRequests()
+        if (page > 1) {
+            fetchRequests(page, true)
+        }
+    }, [page])
+
+    // Initial load
+    useEffect(() => {
+        setPage(1)
+        setHasMore(true)
+        fetchRequests(1, false)
     }, [])
+
 
     const handleAction = async (id: string, status: 'approved' | 'rejected') => {
         try {
@@ -50,7 +86,10 @@ export default function Announcements() {
             })
             const data = await res.json()
             if (data.success) {
-                fetchRequests()
+                // ✅ Local state update instead of full fetch
+                setRequests(prev => prev.map(r => 
+                    r._id === id ? { ...r, status: status } : r
+                ))
             } else {
                 alert(data.message)
             }
@@ -59,7 +98,7 @@ export default function Announcements() {
         }
     }
 
-    if (loading) {
+    if (loading && page === 1) {
         return (
             <div className={`min-h-screen p-8 ml-24 flex justify-center items-center ${theme === 'dark' ? 'bg-black text-white' : 'bg-gray-50 text-gray-900'}`}>
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500"></div>
@@ -156,9 +195,23 @@ export default function Announcements() {
                         </motion.div>
                     ))}
 
-                    {requests.length === 0 && (
+                    {requests.length === 0 && !loading && (
                         <div className={`p-8 rounded-2xl border text-center ${theme === 'dark' ? 'border-gray-800' : 'border-gray-200'}`}>
                             <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>No work requests available.</p>
+                        </div>
+                    )}
+                    {loading && page > 1 && (
+                        <div className="flex justify-center py-6">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500"></div>
+                        </div>
+                    )}
+                    {hasMore && (
+                        <div ref={observerTarget} className="h-10 w-full" />
+                    )}
+                    
+                    {!hasMore && requests.length > 0 && (
+                        <div className={`text-center mt-6 text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                            No more requests to load
                         </div>
                     )}
                 </AnimatePresence>

@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useTheme } from '../../../../contexts/ThemeContext'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useInfiniteScroll } from '../../../../hooks/useInfiniteScroll'
 
 interface WeekendReq {
     _id: string
@@ -27,27 +28,64 @@ interface Props {
 export default function WeekendRequests({ canApprove }: Props) {
     const { theme } = useTheme()
     const [requests, setRequests] = useState<WeekendReq[]>([])
-    const [loading, setLoading] = useState(true)
+    const [loading, setLoading] = useState(false)
     const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending')
     const [actionLoading, setActionLoading] = useState<string | null>(null)
 
+    const [page, setPage] = useState(1)
+    const [hasMore, setHasMore] = useState(true)
+    const loadingRef = useRef(false)
+    const limit = 10
+
+    const observerTarget = useInfiniteScroll({
+        loading,
+        hasMore,
+        onLoadMore: () => setPage(p => p + 1)
+    })
+
+    // When page changes > 1, load more
     useEffect(() => {
-        fetchRequests()
+        if (page > 1) {
+            fetchRequests(filter, page, true)
+        }
+    }, [page, filter])
+
+    // Initial load and filter change
+    useEffect(() => {
+        setPage(1)
+        setHasMore(true)
+        setRequests([])
+        fetchRequests(filter, 1, false)
     }, [filter])
 
-    const fetchRequests = async () => {
+    const fetchRequests = async (currentFilter: string, pageNum: number = 1, append: boolean = false) => {
+        if (loadingRef.current) return
         try {
+            loadingRef.current = true
             setLoading(true)
-            const statusParam = filter === 'all' ? '' : `?status=${filter}`
-            const res = await fetch(`/api/admin/weekend-requests${statusParam}`)
+            const statusParam = currentFilter === 'all' ? '' : `&status=${currentFilter}`
+            const res = await fetch(`/api/admin/weekend-requests?page=${pageNum}&limit=${limit}${statusParam}`)
             const data = await res.json()
-            if (data.success) setRequests(data.data || [])
+            if (data.success) {
+                if (append) {
+                    setRequests(prev => {
+                        const existingIds = new Set(prev.map(r => r._id))
+                        const newRequests = data.data.filter((r: any) => !existingIds.has(r._id))
+                        return [...prev, ...newRequests]
+                    })
+                } else {
+                    setRequests(data.data || [])
+                }
+                setHasMore(data.pagination?.hasMore ?? false)
+            }
         } catch (err) {
             console.error('Failed to fetch weekend requests', err)
         } finally {
+            loadingRef.current = false
             setLoading(false)
         }
     }
+
 
     const handleAction = async (requestId: string, action: 'approved' | 'rejected') => {
         try {
@@ -70,7 +108,10 @@ export default function WeekendRequests({ canApprove }: Props) {
 
             const data = await res.json()
             if (data.success) {
-                fetchRequests()
+                // ✅ Local state update instead of full fetch
+                setRequests(prev => prev.map(r => 
+                    r._id === requestId ? { ...r, status: action } : r
+                ))
             }
         } catch (err) {
             console.error('Action failed', err)
@@ -267,6 +308,14 @@ export default function WeekendRequests({ canApprove }: Props) {
                             </motion.div>
                         ))}
                     </AnimatePresence>
+
+                    <div ref={observerTarget} className="h-10 w-full" />
+                    
+                    {!loading && requests.length > 0 && !hasMore && (
+                        <div className={`text-center mt-6 text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                            No more requests to load
+                        </div>
+                    )}
                 </div>
             )}
         </div>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Eye, Trash2 } from 'lucide-react'
 import { useTheme } from '../../../../contexts/ThemeContext'
@@ -22,6 +22,8 @@ interface LeaveProps {
   canApprove?: boolean
 }
 
+import { useInfiniteScroll } from '../../../../hooks/useInfiniteScroll'
+
 export default function Leave({ canEdit = false, canApprove = false }: LeaveProps) {
   const { theme } = useTheme()
 
@@ -32,12 +34,19 @@ export default function Leave({ canEdit = false, canApprove = false }: LeaveProp
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(false)
   const [hasMore, setHasMore] = useState(true)
-
+  const loadingRef = useRef(false)
   const limit = 10
+
+  const observerTarget = useInfiniteScroll({
+    loading,
+    hasMore,
+    onLoadMore: () => setPage(p => p + 1)
+  })
 
   /* ================= FETCH (Infinite Scroll) ================= */
   const fetchLeaves = useCallback(async (pageNumber: number, append: boolean = false) => {
-    if (loading) return
+    if (loadingRef.current) return
+    loadingRef.current = true
     setLoading(true)
 
     try {
@@ -56,14 +65,15 @@ export default function Leave({ canEdit = false, canApprove = false }: LeaveProp
         } else {
           setLeaves(data.data)
         }
-        setHasMore(data.pagination?.hasMore || data.hasMore || (data.totalPages && pageNumber < data.totalPages))
+        setHasMore(data.pagination?.hasMore ?? data.hasMore ?? false)
       }
     } catch {
       console.error('Failed to fetch leaves')
     } finally {
+      loadingRef.current = false
       setLoading(false)
     }
-  }, [loading])
+  }, [])
 
   /* ================= STATUS UPDATE ================= */
 
@@ -83,8 +93,11 @@ export default function Leave({ canEdit = false, canApprove = false }: LeaveProp
     })
 
     setSelected(null)
-    setPage(1)
-    fetchLeaves(1, false)
+    
+    // ✅ Local state update instead of full fetch
+    setLeaves(prev => prev.map(l => 
+      l._id === id ? { ...l, status: status } : l
+    ))
   }
 
   /* ================= DELETE ================= */
@@ -131,30 +144,21 @@ export default function Leave({ canEdit = false, canApprove = false }: LeaveProp
     }
   }
 
+  // When page changes > 1, load more
+  useEffect(() => {
+    if (page > 1) {
+      fetchLeaves(page, true)
+    }
+  }, [page, fetchLeaves])
+
   // Initial load
   useEffect(() => {
-    fetchLeaves(1, false)
+    if (page === 1 && leaves.length === 0) {
+      fetchLeaves(1, false)
+    }
   }, [])
 
-  // Auto load more on scroll
-  useEffect(() => {
-    const handleScroll = () => {
-      if (loading || !hasMore) return
 
-      const scrollTop = window.scrollY || document.documentElement.scrollTop
-      const scrollHeight = document.documentElement.scrollHeight
-      const clientHeight = window.innerHeight
-
-      if (scrollTop + clientHeight >= scrollHeight - 200) {
-        const nextPage = page + 1
-        setPage(nextPage)
-        fetchLeaves(nextPage, true)
-      }
-    }
-
-    window.addEventListener('scroll', handleScroll)
-    return () => window.removeEventListener('scroll', handleScroll)
-  }, [loading, hasMore, page, fetchLeaves])
 
   return (
     <div className="mt-8">
@@ -241,6 +245,7 @@ export default function Leave({ canEdit = false, canApprove = false }: LeaveProp
 
         </table>
       </div>
+
 
       {/* ================= LOADING / NO MORE ================= */}
       {loading && (

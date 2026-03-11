@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { Search, Plus, Edit, Ban, Trash2, CheckCircle, Link as LinkIcon } from 'lucide-react'
 import { useTheme } from '../../../contexts/ThemeContext'
 import { useToast } from '../../../contexts/ToastContext'
@@ -8,6 +8,7 @@ import Swal from 'sweetalert2'
 import AddProject from './components/addprojects'
 import EditProjects from './components/editprojects'
 import ProjectLinksModal from './components/ProjectLinksModal'
+import { useInfiniteScroll } from '../../../hooks/useInfiniteScroll'
 
 interface Project {
   _id: string
@@ -30,9 +31,21 @@ export default function AdminProjectsPage() {
   const [search, setSearch] = useState('')
   const [openAdd, setOpenAdd] = useState(false)
   const [editProject, setEditProject] = useState<Project | null>(null)
-  const [loading, setLoading] = useState(true)
+  
+  const [loading, setLoading] = useState(false)
+  const [page, setPage] = useState(1)
+  const [hasMore, setHasMore] = useState(true)
+  const loadingRef = useRef(false)
+  const limit = 10
+
   const [currentAdmin, setCurrentAdmin] = useState<CurrentAdmin | null>(null)
   
+  const observerTarget = useInfiniteScroll({
+    loading,
+    hasMore,
+    onLoadMore: () => setPage(p => p + 1)
+  })
+
   // Project Links Modal State
   const [openLinksModal, setOpenLinksModal] = useState(false)
   const [selectedProjectName, setSelectedProjectName] = useState('')
@@ -66,26 +79,49 @@ export default function AdminProjectsPage() {
   const canCreate = () => currentAdmin?.edit === true
 
   /* ---------------- FETCH PROJECTS ---------------- */
+  // When page changes > 1, load more
   useEffect(() => {
-    getProjects()
+    if (page > 1) {
+      getProjects(page, true)
+    }
+  }, [page])
+
+  useEffect(() => {
+    // Only fetch if it's the first time
+    if (page === 1 && projects.length === 0) {
+      getProjects(1, false)
+    }
   }, [])
 
-  const getProjects = async () => {
+  const getProjects = async (pageNum: number = 1, append: boolean = false) => {
+    if (loadingRef.current) return
     try {
+      loadingRef.current = true
       setLoading(true)
 
-      const res = await fetch('/api/admin/projects/list')
+      const res = await fetch(`/api/admin/projects/list?page=${pageNum}&limit=${limit}`)
       const data = await res.json()
 
       if (data.success) {
-        setProjects(data.data)
+        if (append) {
+          setProjects(prev => {
+            const existingIds = new Set(prev.map(p => p._id))
+            const newProjects = data.data.filter((p: any) => !existingIds.has(p._id))
+            return [...prev, ...newProjects]
+          })
+        } else {
+          setProjects(data.data)
+        }
+        setHasMore(data.pagination?.hasMore ?? false)
       }
     } catch (err) {
       console.error('Failed to fetch projects', err)
     } finally {
+      loadingRef.current = false
       setLoading(false)
     }
   }
+
 
   /* ---------------- TOGGLE DISABLE/ENABLE ---------------- */
   const toggleProjectStatus = async (projectId: string, isDisabled: boolean) => {
@@ -114,7 +150,11 @@ export default function AdminProjectsPage() {
 
       if (data.success) {
         success(`Project ${action.toLowerCase()}d successfully`)
-        getProjects()
+        
+        // ✅ Local state update instead of full fetch
+        setProjects(prev => prev.map(p => 
+          p._id === projectId ? { ...p, isDisabled: !isDisabled } : p
+        ))
       } else {
         error(`Failed to ${action.toLowerCase()} project`)
       }
@@ -147,7 +187,9 @@ export default function AdminProjectsPage() {
 
       if (data.success) {
         success('Project deleted successfully')
-        getProjects()
+        
+        // ✅ Local state update instead of full fetch
+        setProjects(prev => prev.filter(p => p._id !== projectId))
       } else {
         error('Failed to delete project')
       }
@@ -335,12 +377,16 @@ export default function AdminProjectsPage() {
         </table>
       </div>
 
+      <div ref={observerTarget} className="h-10 w-full" />
+
       {/* MODALS */}
       {openAdd && (
         <AddProject
           onClose={() => {
             setOpenAdd(false)
-            getProjects() // refresh after add
+            setPage(1)
+            setHasMore(true)
+            getProjects(1, false) // refresh after add
           }}
         />
       )}
@@ -350,7 +396,9 @@ export default function AdminProjectsPage() {
           project={editProject}
           onClose={() => {
             setEditProject(null)
-            getProjects() // refresh after edit
+            setPage(1)
+            setHasMore(true)
+            getProjects(1, false) // refresh after edit
           }}
         />
       )}

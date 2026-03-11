@@ -9,19 +9,23 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url)
     const page = Number(searchParams.get('page')) || 1
     const limit = Number(searchParams.get('limit')) || 10
+    const verified = searchParams.get('verified') || 'all' // all | verified | not-verified
 
     const skip = (page - 1) * limit
 
-    const total = await User.countDocuments({
-      isEmailVerified: true,
-      role: 'user'
-    })
+    // Build filter based on verified param
+    const filter: any = { role: 'user' }
+    if (verified === 'verified') {
+      filter.isEmailVerified = true
+    } else if (verified === 'not-verified') {
+      filter.isEmailVerified = false
+    }
+    // 'all' → no isEmailVerified filter, shows both
 
-    const users = await User.find({
-      isEmailVerified: true,
-      role: 'user' // 👈 sirf normal users
-    })
-      .select('name email mobileNumber isActive createdAt')
+    const total = await User.countDocuments(filter)
+
+    const users = await User.find(filter)
+      .select('name email mobileNumber isActive isEmailVerified createdAt')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
