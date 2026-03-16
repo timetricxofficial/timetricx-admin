@@ -27,22 +27,6 @@ const getFileName = (url: string) => {
   }
 }
 
-const isPdfUrl = (url: string) => {
-  const clean = url.split('?')[0].toLowerCase()
-  return clean.endsWith('.pdf')
-}
-
-const isImageUrl = (url: string) => {
-  const clean = url.split('?')[0].toLowerCase()
-  return (
-    clean.endsWith('.png') ||
-    clean.endsWith('.jpg') ||
-    clean.endsWith('.jpeg') ||
-    clean.endsWith('.webp') ||
-    clean.endsWith('.gif')
-  )
-}
-
 export default function UserDocuments({ email, close }: any) {
   const { theme } = useTheme()
 
@@ -79,7 +63,7 @@ export default function UserDocuments({ email, close }: any) {
       style={{
         position: 'fixed',
         inset: 0,
-        background: 'rgba(0,0,0,0.45)',
+        background: theme === 'dark' ? 'rgba(0,0,0,0.6)' : 'rgba(15,23,42,0.35)',
         zIndex: 50,
         display: 'flex',
         justifyContent: 'center',
@@ -95,12 +79,14 @@ export default function UserDocuments({ email, close }: any) {
           padding: '20px',
           borderRadius: '16px',
           backdropFilter: 'blur(16px)',
-          boxShadow: '0 20px 50px rgba(0,0,0,0.4)',
+          boxShadow: theme === 'dark'
+            ? '0 20px 55px rgba(0,0,0,0.55), 0 10px 30px rgba(59,130,246,0.18)'
+            : '0 18px 45px rgba(15,23,42,0.18), 0 10px 25px rgba(59,130,246,0.16)',
           border:
             theme === 'dark'
-              ? '1px solid rgba(59,130,246,0.3)'
-              : '1px solid rgba(59,130,246,0.2)',
-          background: theme === 'dark' ? 'rgba(17,24,39,0.9)' : 'rgba(255,255,255,0.95)',
+              ? '1px solid rgba(148,163,184,0.22)'
+              : '1px solid rgba(15,23,42,0.12)',
+          background: theme === 'dark' ? 'rgba(17,24,39,0.92)' : 'rgba(255,255,255,0.95)',
           transform: show ? 'translateY(0)' : 'translateY(12px)',
           opacity: show ? 1 : 0,
           transition: 'all 0.25s ease'
@@ -201,7 +187,6 @@ export default function UserDocuments({ email, close }: any) {
                             textOverflow: 'ellipsis',
                             whiteSpace: 'nowrap'
                           }}
-                          title={String(e.value)}
                         >
                           {getFileName(String(e.value))}
                         </p>
@@ -230,47 +215,6 @@ export default function UserDocuments({ email, close }: any) {
                         </a>
                       </div>
                     </div>
-
-                    {isPdfUrl(String(e.value)) && (
-                      <div
-                        style={{
-                          marginTop: 12,
-                          borderRadius: 12,
-                          overflow: 'hidden',
-                          border: theme === 'dark' ? '1px solid rgba(255,255,255,0.12)' : '1px solid rgba(0,0,0,0.10)',
-                          background: theme === 'dark' ? 'rgba(0,0,0,0.25)' : 'rgba(255,255,255,0.8)'
-                        }}
-                      >
-                        <iframe
-                          src={`${String(e.value)}#view=FitH&toolbar=0&navpanes=0`}
-                          title={getFileName(String(e.value))}
-                          style={{ width: '100%', height: 320 }}
-                        />
-                      </div>
-                    )}
-
-                    {isImageUrl(String(e.value)) && (
-                      <div
-                        style={{
-                          marginTop: 12,
-                          borderRadius: 12,
-                          overflow: 'hidden',
-                          border: theme === 'dark' ? '1px solid rgba(255,255,255,0.12)' : '1px solid rgba(0,0,0,0.10)',
-                          background: theme === 'dark' ? 'rgba(0,0,0,0.25)' : 'rgba(255,255,255,0.8)'
-                        }}
-                      >
-                        <img
-                          src={String(e.value)}
-                          alt={e.label}
-                          style={{
-                            width: '100%',
-                            height: 320,
-                            objectFit: 'contain',
-                            display: 'block'
-                          }}
-                        />
-                      </div>
-                    )}
                   </div>
                 ))}
             </div>

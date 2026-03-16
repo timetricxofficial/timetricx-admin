@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = new URL(req.url)
     const page = Number(searchParams.get('page')) || 1
-    const limit = Number(searchParams.get('limit')) || 10
+    const limit = Number(searchParams.get('limit')) || 1000
     const verified = searchParams.get('verified') || 'all' // all | verified | not-verified
 
     const skip = (page - 1) * limit
@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
     const total = await User.countDocuments(filter)
 
     const users = await User.find(filter)
-      .select('name email mobileNumber isActive isEmailVerified createdAt')
+      .select('name email mobileNumber isActive isEmailVerified createdAt workingRole designation skills profile.bio')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
