@@ -24,9 +24,16 @@ export async function GET(req: Request) {
       )
     }
 
+    // Fetch documents
+    const InternDocument = (await import('../../../../../models/InternDocument')).default
+    const documents = await InternDocument.findOne({ internEmail: email.toLowerCase() })
+
     return NextResponse.json({
       success: true,
-      data: user
+      data: {
+        ...user.toObject(),
+        documents
+      }
     })
 
   } catch (error) {

@@ -1,11 +1,12 @@
 'use client'
 
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { Search, Eye, Edit, Ban, Trash2, CheckCircle, Filter } from 'lucide-react'
+import { Search, Eye, Edit, Ban, Trash2, CheckCircle, Filter, FileText } from 'lucide-react'
 import { useTheme } from '../../../../contexts/ThemeContext'
 import { useToast } from '../../../../contexts/ToastContext'
 import EditUser from './components/edit'
 import ViewUser from './components/view'
+import UserDocuments from './components/documents'
 import Dialog from '@/components/ui/Dialog'
 import Loading from '@/components/ui/Loading'
 import { useInfiniteScroll } from '../../../../hooks/useInfiniteScroll'
@@ -31,6 +32,7 @@ export default function User({ onEdit, onView }: UserProps) {
 
   const [openEdit, setOpenEdit] = useState(false)
   const [openView, setOpenView] = useState(false)
+  const [openDocuments, setOpenDocuments] = useState(false)
   const [currentAdmin, setCurrentAdmin] = useState<CurrentAdmin | null>(null)
 
   const [dialogConfig, setDialogConfig] = useState<{
@@ -232,6 +234,12 @@ export default function User({ onEdit, onView }: UserProps) {
     }
   }
 
+  // DOCUMENTS
+  const handleDocuments = (email: string) => {
+    setSelectedEmail(email)
+    setOpenDocuments(true)
+  }
+
   return (
     <div>
       {/* SEARCH + FILTER */}
@@ -354,6 +362,14 @@ export default function User({ onEdit, onView }: UserProps) {
                   </button>
 
                   <button
+                    onClick={() => handleDocuments(user.email)}
+                    className="text-slate-600 hover:scale-110 cursor-pointer"
+                    title="Documents"
+                  >
+                    <FileText size={18} />
+                  </button>
+
+                  <button
                     onClick={() => canDelete() && deleteUser(user.email)}
                     disabled={!canDelete()}
                     className={`text-red-500 ${canDelete() ? 'hover:scale-110 cursor-pointer' : 'cursor-not-allowed opacity-30'
@@ -397,6 +413,13 @@ export default function User({ onEdit, onView }: UserProps) {
         <ViewUser
           email={selectedEmail}
           close={() => setOpenView(false)}
+        />
+      )}
+
+      {openDocuments && (
+        <UserDocuments
+          email={selectedEmail}
+          close={() => setOpenDocuments(false)}
         />
       )}
 

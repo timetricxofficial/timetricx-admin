@@ -7,7 +7,10 @@ export interface IInternDocument extends Document {
   aadhar?: string;
   collegeId?: string;
   offerLetter?: string;
+  signedOfferLetter?: string;
   noc?: string;
+  marksheet10?: string;
+  marksheet12?: string;
 
   createdAt: Date;
   updatedAt: Date;
@@ -26,7 +29,10 @@ const InternDocumentSchema = new Schema<IInternDocument>(
     aadhar: String,
     collegeId: String,
     offerLetter: String,
+    signedOfferLetter: String,
     noc: String,
+    marksheet10: String,
+    marksheet12: String,
   },
   { timestamps: true }
 );

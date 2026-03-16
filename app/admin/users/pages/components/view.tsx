@@ -154,11 +154,25 @@ export default function ViewUser({ email, close }: any) {
 
           {/* SOCIAL */}
           <Box theme={theme} title="Social" mt>
+            {Row('GitHub (Linked)', user.authProviders?.github?.username || '-', theme)}
             {Row('Linkedin', user.socialLinks?.linkedin || '-', theme)}
             {Row('Twitter', user.socialLinks?.twitter || '-', theme)}
             {Row('Instagram', user.socialLinks?.instagram || '-', theme)}
             {Row('Facebook', user.socialLinks?.facebook || '-', theme)}
           </Box>
+
+          {/* DOCUMENTS */}
+          {user.documents && (
+            <Box theme={theme} title="Documents" mt>
+              {Row('Aadhar Card', user.documents.aadhar, theme)}
+              {Row('College ID', user.documents.collegeId, theme)}
+              {Row('Signed Offer Letter', user.documents.signedOfferLetter || user.documents.offerLetter, theme)}
+              {Row('NOC', user.documents.noc, theme)}
+              {Row('10th Marksheet', user.documents.marksheet10, theme)}
+              {Row('12th Marksheet', user.documents.marksheet12, theme)}
+              {Row('Resume', user.documents.resume, theme)}
+            </Box>
+          )}
 
           {/* GITHUB CONTRIBUTION */}
           {gitData && (
