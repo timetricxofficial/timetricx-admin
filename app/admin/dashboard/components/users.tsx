@@ -10,10 +10,13 @@ export default function UsersCard() {
   const isDark = theme === 'dark'
 
   const [userCount, setUserCount] = useState(0)
+  const [verifiedUserCount, setVerifiedUserCount] = useState(0)
   const [loading, setLoading] = useState(true)
 
   const count = useMotionValue(0)
+  const verifiedCount = useMotionValue(0)
   const rounded = useTransform(count, (latest) => Math.round(latest))
+  const verifiedRounded = useTransform(verifiedCount, (latest) => Math.round(latest))
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -21,9 +24,12 @@ export default function UsersCard() {
         const res = await fetch('/api/admin/dashboard/stats')
         const data = await res.json()
         if (data.success) {
-          const finalCount = data.data.users
-          setUserCount(finalCount)
-          animate(count, finalCount, { duration: 1.5, ease: 'easeOut' })
+          const totalCount = data.data.users
+          const verifiedCount = data.data.verifiedUsers
+          setUserCount(totalCount)
+          setVerifiedUserCount(verifiedCount)
+          animate(count, totalCount, { duration: 1.5, ease: 'easeOut' })
+          animate(verifiedCount, verifiedCount, { duration: 1.5, ease: 'easeOut' })
         }
       } catch (error) {
         console.error('Failed to fetch user count:', error)
@@ -33,7 +39,7 @@ export default function UsersCard() {
     }
 
     fetchStats()
-  }, [count])
+  }, [count, verifiedCount])
 
   return (
     <>
@@ -70,6 +76,9 @@ export default function UsersCard() {
             <h2 className={`text-5xl font-bold ${isDark ? 'text-white' : 'text-gray-800'}`}>
               {loading ? '...' : <motion.span>{rounded}</motion.span>}
             </h2>
+            <span className={`text-lg ${isDark ? 'text-green-400' : 'text-green-600'}`}>
+              {loading ? '' : `(${verifiedUserCount} verified)`}
+            </span>
           </div>
         </div>
 
@@ -97,6 +106,9 @@ export default function UsersCard() {
               <h2 className={`text-5xl font-bold ${isDark ? 'text-white' : 'text-gray-800'}`}>
                 {loading ? '...' : <motion.span>{rounded}</motion.span>}
               </h2>
+              <span className={`text-lg ${isDark ? 'text-green-400' : 'text-green-600'}`}>
+                {loading ? '' : `(${verifiedUserCount} verified)`}
+              </span>
             </div>
           </div>
         </div>

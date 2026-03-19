@@ -47,21 +47,30 @@ export async function GET() {
       count: userGrowthRaw.find((u: any) => u._id === date)?.count || 0
     }))
 
-    // Get attendance data - FaceAttendance model stores data differently
+    // DEBUG: Check FaceAttendance structure
+    const sampleDoc = await FaceAttendance.findOne()
+    console.log('Sample FaceAttendance:', JSON.stringify(sampleDoc, null, 2))
+
+    // Get attendance data - Query by actual attendance dates in nested array
     const attendanceDataRaw = await FaceAttendance.aggregate([
+      { $unwind: '$months' },
+      { $unwind: '$months.records' },
       {
         $match: {
-          createdAt: { $gte: sevenDaysAgo }
+          'months.records.date': { $in: dates }
         }
       },
       {
         $group: {
-          _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+          _id: '$months.records.date',
           count: { $sum: 1 }
         }
       },
       { $sort: { _id: 1 } }
     ])
+
+    console.log('Attendance query dates:', dates)
+    console.log('Attendance raw results:', attendanceDataRaw)
 
     // Fill missing dates with 0
     const attendanceData = dates.map(date => ({

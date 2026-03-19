@@ -262,6 +262,9 @@ export default function Leave({ canEdit = false, canApprove = false }: LeaveProp
         </div>
       )}
 
+      {/* Infinite scroll trigger */}
+      <div ref={observerTarget} className="h-4" />
+
       {/* ================= VIEW MODAL ================= */}
 
       <AnimatePresence>

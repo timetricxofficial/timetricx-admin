@@ -18,12 +18,15 @@ export async function GET(req: NextRequest) {
       .skip(skip)
       .limit(limit)
 
+    const hasMore = skip + leaves.length < total
+
     return NextResponse.json({
       success: true,
       data: leaves,
       total,
       totalPages: Math.ceil(total / limit),
-      currentPage: page
+      currentPage: page,
+      hasMore
     })
 
   } catch (err) {

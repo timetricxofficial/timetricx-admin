@@ -13,7 +13,10 @@ export async function GET() {
     await connectDB()
 
     // Get all counts in parallel
-    const [totalUsers, totalAttendance, totalProjects, totalContacts] = await Promise.all([
+    const [totalUsers, verifiedUsers, totalAttendance, totalProjects, totalContacts] = await Promise.all([
+      // Total all users
+      User.countDocuments({ role: 'user' }),
+
       // Total verified users
       User.countDocuments({
         isEmailVerified: true,
@@ -34,6 +37,7 @@ export async function GET() {
       success: true,
       data: {
         users: totalUsers,
+        verifiedUsers: verifiedUsers,
         attendance: totalAttendance,
         projects: totalProjects,
         contacts: totalContacts
