@@ -30,6 +30,7 @@ export default function Attendance({ canEdit = false, canDelete = false }: Atten
   const [leaves, setLeaves] = useState<any[]>([])
   const [companyHolidays, setCompanyHolidays] = useState<any[]>([])
   const [verifiedFilter, setVerifiedFilter] = useState<'all' | 'verified' | 'not-verified'>('all')
+  const [searchQuery, setSearchQuery] = useState('')
 
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(true)
@@ -75,6 +76,21 @@ export default function Attendance({ canEdit = false, canDelete = false }: Atten
   }, [verifiedFilter])
 
   /* ================= TOTAL COUNT ================= */
+
+  const getTodaysTiming = (months: any[]) => {
+    const today = new Date()
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+    
+    for (const month of months) {
+      const record = month.records.find((r: any) => r.date === todayStr)
+      if (record) {
+        const entry = record.entryTime ? record.entryTime.toLowerCase().replace(' ', '') : '--'
+        const exit = record.exitTime ? record.exitTime.toLowerCase().replace(' ', '') : '--'
+        return `${entry} - ${exit}`
+      }
+    }
+    return '-- - --'
+  }
 
   const getTotalAttendance = (months: any[]) => {
     return months.reduce(
@@ -171,6 +187,24 @@ export default function Attendance({ canEdit = false, canDelete = false }: Atten
 
       {/* VERIFICATION FILTER DROPDOWN */}
       <div className="mb-4 flex items-center gap-3">
+        {/* SEARCH INPUT */}
+        <div className="relative">
+          <svg className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <input
+            type="text"
+            placeholder="Search by email..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className={`pl-9 pr-4 py-2 rounded-lg border text-sm font-medium transition-all w-64
+              ${theme === 'dark'
+                ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500'
+                : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
+              }`}
+          />
+        </div>
+
         <div className="relative">
           <Filter className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
           <select
@@ -206,12 +240,15 @@ export default function Attendance({ canEdit = false, canDelete = false }: Atten
               <th className={`p-3 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Email</th>
               <th className={`p-3 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Verified</th>
               <th className={`p-3 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Total Attendance</th>
+              <th className={`p-3 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Today's Timing</th>
               <th className={`p-3 text-center ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Action</th>
             </tr>
           </thead>
 
           <tbody>
-            {data.map((item, index) => (
+            {data
+              .filter(item => item.userEmail.toLowerCase().includes(searchQuery.toLowerCase()))
+              .map((item, index) => (
               <tr
                 key={item._id}
                 className={`border-b transition-colors ${!(item as any).isEmailVerified
@@ -241,6 +278,10 @@ export default function Attendance({ canEdit = false, canDelete = false }: Atten
                   {getTotalAttendance(item.months)}
                 </td>
 
+                <td className={`p-3 font-mono text-xs ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                  {getTodaysTiming(item.months)}
+                </td>
+
                 <td className="p-3 text-center">
                   <button
                     onClick={() => setSelected(item)}
@@ -257,6 +298,8 @@ export default function Attendance({ canEdit = false, canDelete = false }: Atten
               <tr key={`skeleton-${i}`} className={`border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
                 <td className="p-3"><Skeleton height={20} width={30} /></td>
                 <td className="p-3"><Skeleton height={20} width={200} /></td>
+                <td className="p-3"><Skeleton height={20} width={100} /></td>
+                <td className="p-3"><Skeleton height={20} width={60} /></td>
                 <td className="p-3"><Skeleton height={20} width={100} /></td>
                 <td className="p-3 text-center"><Skeleton height={32} width={130} className="rounded-lg" /></td>
               </tr>
