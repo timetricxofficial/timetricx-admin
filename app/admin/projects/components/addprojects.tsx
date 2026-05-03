@@ -79,6 +79,8 @@ export default function AddProject({ onClose }: { onClose: () => void }) {
   }
 
   /* ---------- CREATE PROJECT ---------- */
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
   const createProject = async () => {
     // Validation
     if (!form.name.trim()) {
@@ -86,15 +88,12 @@ export default function AddProject({ onClose }: { onClose: () => void }) {
       return
     }
     
-    if (!form.totalTasks || Number(form.totalTasks) <= 0) {
-      error('Please enter a valid number of total tasks')
-      return
-    }
-    
     if (!form.teamEmails || form.teamEmails.length === 0) {
       error('Please add at least one team member')
       return
     }
+
+    setIsSubmitting(true)
 
     try {
       const res = await fetch('/api/admin/projects/create', {
@@ -127,6 +126,8 @@ export default function AddProject({ onClose }: { onClose: () => void }) {
     } catch (error) {
       console.error('Error creating project:', error)
       error('Error creating project. Please try again.')
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -202,7 +203,7 @@ export default function AddProject({ onClose }: { onClose: () => void }) {
 
             <Row>
                <Input
-              label="Total Tasks"
+              label="Total Tasks (Optional)"
               type="number"
               value={form.totalTasks}
               onChange={(v: string) => setForm({ ...form, totalTasks: v })}
@@ -441,8 +442,10 @@ export default function AddProject({ onClose }: { onClose: () => void }) {
 
           {/* ACTIONS */}
           <div style={{ marginTop: 25, display: 'flex', gap: 10 }}>
-            <Btn theme={theme} onClick={onClose}>Cancel</Btn>
-            <Btn primary onClick={createProject}>Create Project</Btn>
+            <Btn theme={theme} onClick={onClose} disabled={isSubmitting}>Cancel</Btn>
+            <Btn primary onClick={createProject} disabled={isSubmitting}>
+              {isSubmitting ? 'Create Project...' : 'Create Project'}
+            </Btn>
           </div>
 
         </div>
@@ -573,18 +576,20 @@ function Row({ children }: any) {
   return <div style={{ display: 'flex', gap: 10 }}>{children}</div>
 }
 
-function Btn({ children, onClick, primary, theme }: any) {
+function Btn({ children, onClick, primary, theme, disabled }: any) {
   return (
     <button
       onClick={onClick}
+      disabled={disabled}
       style={{
         flex: 1,
         padding: 12,
         borderRadius: 8,
         border: primary ? 'none' : '1px solid rgba(0,0,0,0.2)',
-        background: primary ? '#3b82f6' : 'transparent',
+        background: primary ? (disabled ? '#93c5fd' : '#3b82f6') : 'transparent',
         color: primary ? '#fff' : theme === 'dark' ? '#fff' : '#111',
-        cursor: 'pointer'
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        opacity: disabled ? 0.7 : 1
       }}
     >
       {children}

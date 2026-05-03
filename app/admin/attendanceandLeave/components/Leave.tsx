@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Eye, Trash2 } from 'lucide-react'
+import { Eye, Trash2, Edit3 } from 'lucide-react'
 import { useTheme } from '../../../../contexts/ThemeContext'
 import Swal from 'sweetalert2'
 
@@ -15,6 +15,7 @@ interface LeaveData {
   totalDays: number
   reason: string
   status: 'pending' | 'approved' | 'rejected'
+  _isEditing?: boolean
 }
 
 interface LeaveProps {
@@ -79,7 +80,7 @@ export default function Leave({ canEdit = false, canApprove = false }: LeaveProp
 
   const updateStatus = async (
     id: string,
-    status: 'approved' | 'rejected'
+    status: 'approved' | 'rejected' | 'pending'
   ) => {
 
     await fetch('/api/admin/Leave/update-status', {
@@ -227,6 +228,15 @@ export default function Leave({ canEdit = false, canApprove = false }: LeaveProp
                     className="text-blue-500 hover:scale-110 cursor-pointer"
                   >
                     <Eye size={18} />
+                  </button>
+
+                  <button
+                    onClick={() => canEdit && setSelected({ ...leave, _isEditing: true })}
+                    disabled={!canEdit}
+                    className={`${canEdit ? 'hover:scale-110 cursor-pointer' : 'cursor-not-allowed opacity-30'
+                      } text-yellow-500`}
+                  >
+                    <Edit3 size={18} />
                   </button>
 
                   <button
@@ -401,6 +411,122 @@ export default function Leave({ canEdit = false, canApprove = false }: LeaveProp
                     Reject
                   </button>
 
+                </div>
+              )}
+
+              {/* Edit Status - for approved/rejected leaves */}
+              {(selected._isEditing || selected.status !== 'pending') && canApprove && (
+                <div className="mt-6 space-y-3">
+                  <p className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                    Change Status:
+                  </p>
+
+                  {selected.status !== 'approved' && (
+                    <button
+                      onClick={async () => {
+                        const result = await Swal.fire({
+                          title: 'Approve Leave?',
+                          text: `Change status from ${selected.status} to approved?`,
+                          icon: 'question',
+                          showCancelButton: true,
+                          confirmButtonColor: '#16a34a',
+                          cancelButtonColor: '#6b7280',
+                          confirmButtonText: 'Yes, Approve'
+                        })
+                        if (result.isConfirmed) {
+                          await updateStatus(selected._id, 'approved')
+                          Swal.fire({
+                            title: 'Approved!',
+                            text: 'Leave status updated to approved.',
+                            icon: 'success',
+                            timer: 2000,
+                            showConfirmButton: false
+                          })
+                        }
+                      }}
+                      className="w-full py-2 bg-green-600 hover:bg-green-700 text-white rounded"
+                    >
+                      Change to Approved
+                    </button>
+                  )}
+
+                  {selected.status !== 'rejected' && (
+                    <>
+                      <textarea
+                        placeholder="Rejection reason (required if rejecting)"
+                        value={rejectionReason}
+                        onChange={(e) => setRejectionReason(e.target.value)}
+                        className={`w-full p-2 rounded transition-colors ${theme === 'dark'
+                            ? 'bg-gray-800 text-white'
+                            : 'bg-gray-100 text-gray-900'
+                          }`}
+                      />
+
+                      <button
+                        onClick={async () => {
+                          if (!rejectionReason.trim()) {
+                            Swal.fire({
+                              title: 'Error!',
+                              text: 'Please provide a rejection reason.',
+                              icon: 'error'
+                            })
+                            return
+                          }
+                          const result = await Swal.fire({
+                            title: 'Reject Leave?',
+                            text: `Change status from ${selected.status} to rejected?`,
+                            icon: 'warning',
+                            showCancelButton: true,
+                            confirmButtonColor: '#dc2626',
+                            cancelButtonColor: '#6b7280',
+                            confirmButtonText: 'Yes, Reject'
+                          })
+                          if (result.isConfirmed) {
+                            await updateStatus(selected._id, 'rejected')
+                            Swal.fire({
+                              title: 'Rejected!',
+                              text: 'Leave status updated to rejected.',
+                              icon: 'success',
+                              timer: 2000,
+                              showConfirmButton: false
+                            })
+                          }
+                        }}
+                        className="w-full py-2 bg-red-600 hover:bg-red-700 text-white rounded"
+                      >
+                        Change to Rejected
+                      </button>
+                    </>
+                  )}
+
+                  {selected.status !== 'pending' && (
+                    <button
+                      onClick={async () => {
+                        const result = await Swal.fire({
+                          title: 'Set to Pending?',
+                          text: `Change status from ${selected.status} to pending?`,
+                          icon: 'question',
+                          showCancelButton: true,
+                          confirmButtonColor: '#ca8a04',
+                          cancelButtonColor: '#6b7280',
+                          confirmButtonText: 'Yes, Set Pending'
+                        })
+                        if (result.isConfirmed) {
+                          await updateStatus(selected._id, 'pending')
+                          Swal.fire({
+                            title: 'Pending!',
+                            text: 'Leave status updated to pending.',
+                            icon: 'success',
+                            timer: 2000,
+                            showConfirmButton: false
+                          })
+                        }
+                      }}
+                      className="w-full py-2 bg-yellow-500 hover:bg-yellow-600 text-black rounded"
+                    >
+                      Change to Pending
+                    </button>
+                  )}
                 </div>
               )}
 

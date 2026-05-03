@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useTheme } from '../../../../contexts/ThemeContext'
 import { useToast } from '../../../../contexts/ToastContext'
@@ -33,6 +33,21 @@ export default function CompanyLeaves({ canEdit }: { canEdit: boolean }) {
     const [selectedDate, setSelectedDate] = useState<string | null>(null)
     const [showAddModal, setShowAddModal] = useState(false)
     const [newHolidayTitle, setNewHolidayTitle] = useState('')
+
+    // Tab Refs for animation
+    const calendarTabRef = useRef<HTMLButtonElement>(null)
+    const listTabRef = useRef<HTMLButtonElement>(null)
+    const [tabIndicator, setTabIndicator] = useState({ x: 0, width: 0 })
+
+    useEffect(() => {
+        const activeRef = activeTab === 'calendar' ? calendarTabRef : listTabRef
+        if (activeRef.current) {
+            setTabIndicator({
+                x: activeRef.current.offsetLeft,
+                width: activeRef.current.offsetWidth
+            })
+        }
+    }, [activeTab])
 
     // Animation Upload State
     const [uploading, setUploading] = useState(false)
@@ -310,16 +325,27 @@ export default function CompanyLeaves({ canEdit }: { canEdit: boolean }) {
         <div className={`space-y-6 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
             {/* TABS */}
             <div className="flex justify-center mb-4">
-                <div className={`flex p-1 rounded-xl ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-200'}`}>
+                <div className={`relative flex p-1 rounded-xl ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-200'}`}>
+                    <motion.div
+                        className="absolute top-1 bottom-1 rounded-lg bg-blue-600 shadow-lg"
+                        initial={false}
+                        animate={{
+                            x: tabIndicator.x,
+                            width: tabIndicator.width
+                        }}
+                        transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                    />
                     <button
+                        ref={calendarTabRef}
                         onClick={() => setActiveTab('calendar')}
-                        className={`px-6 py-2 rounded-lg font-medium transition-all ${activeTab === 'calendar' ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-500 hover:text-gray-700'}`}
+                        className={`relative z-10 px-6 py-2 rounded-lg font-medium transition-all ${activeTab === 'calendar' ? 'text-white' : 'text-gray-500 hover:text-gray-700'}`}
                     >
                         Calendar View (Panchang)
                     </button>
                     <button
+                        ref={listTabRef}
                         onClick={() => setActiveTab('list')}
-                        className={`px-6 py-2 rounded-lg font-medium transition-all ${activeTab === 'list' ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-500 hover:text-gray-700'}`}
+                        className={`relative z-10 px-6 py-2 rounded-lg font-medium transition-all ${activeTab === 'list' ? 'text-white' : 'text-gray-500 hover:text-gray-700'}`}
                     >
                         List View
                     </button>
@@ -592,48 +618,46 @@ export default function CompanyLeaves({ canEdit }: { canEdit: boolean }) {
                 </div>
             )}
             {activeTab === 'list' && (
-                <div className="space-y-6">
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className={`rounded-3xl shadow-2xl overflow-hidden border ${theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'}`}
-                    >
-                        <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-800/50">
-                            <h2 className="text-2xl font-bold">Official Company Holidays List</h2>
-                        </div>
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className={`rounded-3xl shadow-2xl overflow-hidden border backdrop-blur-xl ${theme === 'dark' ? 'bg-gray-900/60 border-gray-700' : 'bg-white/80 border-gray-200'}`}
+                >
+                    <div className={`p-4 border-b flex justify-between items-center ${theme === 'dark' ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50'}`}>
+                        <h2 className="text-xl font-bold">Official Company Holidays List</h2>
+                    </div>
 
-                        <div className="divide-y divide-gray-200 dark:divide-gray-700">
-                            {holidays.length === 0 ? (
-                                <div className="p-12 text-center opacity-60">No official holidays declared yet.</div>
-                            ) : (
-                                holidays.map(holiday => (
-                                    <div key={holiday._id} className="flex items-center justify-between px-8 py-5 hover:bg-gray-50 dark:hover:bg-gray-800/20 transition-all">
-                                        <div className="flex-1">
-                                            <p className="font-bold text-lg">{holiday.title}</p>
-                                            <p className="text-sm opacity-60 flex items-center gap-2 mt-1 uppercase tracking-wider">
-                                                📅 {new Date(holiday.date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-                                            </p>
-                                        </div>
-                                        <div className="flex gap-2">
-                                            <button
-                                                onClick={() => handleEdit(holiday)}
-                                                className="p-3 bg-blue-100 text-blue-600 hover:bg-blue-500 hover:text-white dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-600 dark:hover:text-white rounded-2xl transition-all cursor-pointer shadow-sm hover:shadow-lg"
-                                            >
-                                                <Pencil size={24} />
-                                            </button>
-                                            <button
-                                                onClick={() => handleDelete(holiday._id)}
-                                                className="p-3 bg-red-100 text-red-600 hover:bg-red-500 hover:text-white dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-600 dark:hover:text-white rounded-2xl transition-all cursor-pointer shadow-sm hover:shadow-lg"
-                                            >
-                                                <Trash2 size={24} />
-                                            </button>
-                                        </div>
+                    <div className={`divide-y ${theme === 'dark' ? 'divide-gray-700' : 'divide-gray-200'}`}>
+                        {holidays.length === 0 ? (
+                            <div className="p-12 text-center opacity-60">No official holidays declared yet.</div>
+                        ) : (
+                            holidays.map(holiday => (
+                                <div key={holiday._id} className={`flex items-center justify-between px-6 py-3 transition-all ${theme === 'dark' ? 'hover:bg-gray-800/20' : 'hover:bg-gray-50'}`}>
+                                    <div className="flex-1">
+                                        <p className="font-bold text-base">{holiday.title}</p>
+                                        <p className="text-xs opacity-60 flex items-center gap-2 mt-1 uppercase tracking-wider">
+                                            📅 {new Date(holiday.date).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}
+                                        </p>
                                     </div>
-                                ))
-                            )}
-                        </div>
-                    </motion.div>
-                </div>
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={() => handleEdit(holiday)}
+                                            className={`p-2 rounded-xl transition-all cursor-pointer shadow-sm hover:shadow-lg ${theme === 'dark' ? 'bg-blue-900/30 text-blue-400 hover:bg-blue-600 hover:text-white' : 'bg-blue-100 text-blue-600 hover:bg-blue-500 hover:text-white'}`}
+                                        >
+                                            <Pencil size={18} />
+                                        </button>
+                                        <button
+                                            onClick={() => handleDelete(holiday._id)}
+                                            className={`p-2 rounded-xl transition-all cursor-pointer shadow-sm hover:shadow-lg ${theme === 'dark' ? 'bg-red-900/30 text-red-400 hover:bg-red-600 hover:text-white' : 'bg-red-100 text-red-600 hover:bg-red-500 hover:text-white'}`}
+                                        >
+                                            <Trash2 size={18} />
+                                        </button>
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </motion.div>
             )}
 
             {/* ADD HOLIDAY MODAL */}

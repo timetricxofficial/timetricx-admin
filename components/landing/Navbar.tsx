@@ -21,8 +21,8 @@ export default function Navbar() {
 
   const showNavbar =
     (pathname === '/' ||
-      pathname.includes('/features') ||
-      pathname.includes('/landing')) &&
+      pathname?.includes('/features') ||
+      pathname?.includes('/landing')) &&
     pathname !== '/landing/auth/login'
 
   if (!showNavbar) return null

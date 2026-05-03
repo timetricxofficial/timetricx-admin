@@ -19,14 +19,38 @@ export async function POST(req: NextRequest) {
       descriptionDriveLink
     } = body
 
-    if (!name || !teamEmails?.length || !tasks?.total) {
+    if (!name || !teamEmails?.length) {
       return NextResponse.json(
-        { success: false, message: 'Missing required fields' },
+        { success: false, message: 'Project name and team members are required' },
         { status: 400 }
       )
     }
 
-    const total = Number(tasks.total)
+    // Tasks are optional - default to 0 if not provided
+    const total = tasks?.total ? Number(tasks.total) : 0
+
+    /* ---------- CHECK DUPLICATE PROJECT ASSIGNMENTS ---------- */
+    // Check if any team member already has this project assigned
+    const existingProjects = await Project.find({ name })
+    const alreadyAssignedEmails: string[] = []
+
+    for (const existingProject of existingProjects) {
+      for (const email of teamEmails) {
+        if (existingProject.teamEmails.includes(email)) {
+          alreadyAssignedEmails.push(email)
+        }
+      }
+    }
+
+    if (alreadyAssignedEmails.length > 0) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          message: `Project already assigned to: ${[...new Set(alreadyAssignedEmails)].join(', ')}` 
+        },
+        { status: 400 }
+      )
+    }
 
     const project = await Project.create({
       name,
@@ -38,8 +62,8 @@ export async function POST(req: NextRequest) {
       descriptionDriveLink,
 
       tasks: {
-        total,
-        completed: 0     // ✅ correct
+        total: total || 0,
+        completed: 0
       },
 
       progress: 0

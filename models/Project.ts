@@ -79,7 +79,6 @@ const ProjectSchema = new Schema<IProject>(
     tasks: {
       total: {
         type: Number,
-        required: true
       },
       completed: {
         type: Number,

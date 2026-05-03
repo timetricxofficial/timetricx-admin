@@ -5,8 +5,8 @@ import { useSearchParams } from 'next/navigation'
 
 function HolidayActionContent() {
     const searchParams = useSearchParams()
-    const id = searchParams.get('id')
-    const actionParam = searchParams.get('action') // 'approved' or 'rejected'
+    const id = searchParams?.get('id')
+    const actionParam = searchParams?.get('action') // 'approved' or 'rejected'
 
     const [loading, setLoading] = useState(true)
     const [processing, setProcessing] = useState(false)

@@ -89,8 +89,8 @@ export default function EditAdmin({ email, close, onSuccess }: EditAdminProps) {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email,
-          ...form
+          ...form,
+          email
         })
       })
 

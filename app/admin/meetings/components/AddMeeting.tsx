@@ -16,6 +16,7 @@ export default function AddMeeting({ onClose }: { onClose: () => void }) {
     hostEmail: '',
     projectName: '',
     workingRole: '',
+    userEmail: '',
     date: '',
     startTime: '',
     endTime: '',
@@ -50,12 +51,19 @@ export default function AddMeeting({ onClose }: { onClose: () => void }) {
   }
 
   /* -------- CREATE MEETING -------- */
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
   const createMeeting = async () => {
     if (!form.hostEmail) return error('Enter host email')
-    if (!form.projectName && !form.workingRole) return error('Select project or working role')
+    // Any one of project, role, or user email required
+    if (!form.projectName && !form.workingRole && !form.userEmail) {
+      return error('Select at least one: Project, Working Role, or User Email')
+    }
     if (!form.date || !form.startTime || !form.endTime)
       return error('Select date & time')
     if (!form.meetingLink) return error('Enter meeting link')
+
+    setIsSubmitting(true)
 
     try {
       // Create ISO datetime strings from date + time
@@ -69,6 +77,7 @@ export default function AddMeeting({ onClose }: { onClose: () => void }) {
           hostEmail: form.hostEmail,
           projectName: form.projectName,
           workingRole: form.workingRole,
+          userEmail: form.userEmail,
           meetingLink: form.meetingLink,
           startTime: startDateTime,
           endTime: endDateTime
@@ -85,6 +94,8 @@ export default function AddMeeting({ onClose }: { onClose: () => void }) {
       }
     } catch {
       error('Failed to schedule meeting')
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -133,14 +144,14 @@ export default function AddMeeting({ onClose }: { onClose: () => void }) {
               theme={theme}
             />
 
-            {/* PROJECT & ROLE - Only show one based on selection */}
-            {!form.workingRole && (
+            {/* PROJECT & ROLE & USER EMAIL - Any one required */}
+            {!form.workingRole && !form.userEmail && (
               <div style={{ marginBottom: 12 }}>
                 <Select
-                  label="Select Project"
+                  label="Select Project (Optional)"
                   value={form.projectName}
                   onChange={(v: string) =>
-                    setForm({ ...form, projectName: v, workingRole: '' })
+                    setForm({ ...form, projectName: v, workingRole: '', userEmail: '' })
                   }
                   options={projects.map(p => ({
                     label: p.name,
@@ -150,14 +161,14 @@ export default function AddMeeting({ onClose }: { onClose: () => void }) {
                 />
               </div>
             )}
-            
-            {!form.projectName && (
+
+            {!form.projectName && !form.userEmail && (
               <div style={{ marginBottom: 12 }}>
                 <Select
-                  label="Select Working Role"
+                  label="Select Working Role (Optional)"
                   value={form.workingRole}
                   onChange={(v: string) =>
-                    setForm({ ...form, workingRole: v, projectName: '' })
+                    setForm({ ...form, workingRole: v, projectName: '', userEmail: '' })
                   }
                   options={[
                     { label: 'Frontend Developer', value: 'Frontend Developer' },
@@ -173,6 +184,23 @@ export default function AddMeeting({ onClose }: { onClose: () => void }) {
                   ]}
                   theme={theme}
                 />
+              </div>
+            )}
+
+            {!form.projectName && !form.workingRole && (
+              <div style={{ marginBottom: 12 }}>
+                <Input
+                  label="User Email (Optional)"
+                  placeholder="user@example.com"
+                  value={form.userEmail}
+                  onChange={(v: string) =>
+                    setForm({ ...form, userEmail: v, projectName: '', workingRole: '' })
+                  }
+                  theme={theme}
+                />
+                <p style={{ fontSize: 10, color: theme === 'dark' ? '#888' : '#666', marginTop: 4 }}>
+                  Fill any one: Project, Role, or User Email
+                </p>
               </div>
             )}
 
@@ -223,11 +251,11 @@ export default function AddMeeting({ onClose }: { onClose: () => void }) {
 
           {/* ACTIONS */}
           <div style={{ marginTop: 25, display: 'flex', gap: 10 }}>
-            <Btn theme={theme} onClick={onClose}>
+            <Btn theme={theme} onClick={onClose} disabled={isSubmitting}>
               Cancel
             </Btn>
-            <Btn primary onClick={createMeeting}>
-              Schedule
+            <Btn primary onClick={createMeeting} disabled={isSubmitting}>
+              {isSubmitting ? 'Schedule...' : 'Schedule'}
             </Btn>
           </div>
 
@@ -290,18 +318,20 @@ function Row({ children }: any) {
   return <div style={{ display: 'flex', gap: 10 }}>{children}</div>
 }
 
-function Btn({ children, onClick, primary, theme }: any) {
+function Btn({ children, onClick, primary, theme, disabled }: any) {
   return (
     <button
       onClick={onClick}
+      disabled={disabled}
       style={{
         flex: 1,
         padding: 12,
         borderRadius: 8,
         border: primary ? 'none' : '1px solid rgba(0,0,0,0.2)',
-        background: primary ? '#3b82f6' : 'transparent',
+        background: primary ? (disabled ? '#93c5fd' : '#3b82f6') : 'transparent',
         color: primary ? '#fff' : theme === 'dark' ? '#fff' : '#111',
-        cursor: 'pointer'
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        opacity: disabled ? 0.7 : 1
       }}
     >
       {children}

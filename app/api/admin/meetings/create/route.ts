@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import connectDB from "@/lib/database"
-import { Project } from "@/models/Project"
+import { Project, IProject } from "@/models/Project"
 import { Meeting } from "@/models/Meeting"
 import { User } from "@/models/User"
 
@@ -14,6 +14,7 @@ export async function POST(req: NextRequest) {
       hostEmail,
       projectName,
       workingRole,
+      userEmail,
       startTime,
       endTime,
       meetingLink
@@ -22,19 +23,19 @@ export async function POST(req: NextRequest) {
     /* ---------- VALIDATION ---------- */
     if (
       !hostEmail ||
-      (!projectName && !workingRole) ||
+      (!projectName && !workingRole && !userEmail) ||
       !startTime ||
       !endTime ||
       !meetingLink
     ) {
       return NextResponse.json(
-        { success: false, message: "Missing fields" },
+        { success: false, message: "Missing fields. Select at least one: Project, Role, or User Email" },
         { status: 400 }
       )
     }
 
     /* ---------- FIND PROJECT (if projectName provided) ---------- */
-    let project = null
+    let project: IProject | null = null
     let participantGoogleEmails: string[] = []
 
     if (projectName) {
@@ -72,10 +73,52 @@ export async function POST(req: NextRequest) {
       participantGoogleEmails = [...new Set([...participantGoogleEmails, ...roleEmails])]
     }
 
+    /* ---------- FIND USER BY EMAIL (if userEmail provided) ---------- */
+    if (userEmail) {
+      const userByEmail = await User.findOne({ email: userEmail.toLowerCase() })
+      
+      if (userByEmail) {
+        const userGoogleEmail = userByEmail.authProviders?.google?.email
+        if (userGoogleEmail) {
+          participantGoogleEmails = [...new Set([...participantGoogleEmails, userGoogleEmail])]
+        }
+      }
+    }
+
     if (participantGoogleEmails.length === 0) {
       return NextResponse.json(
         { success: false, message: "No Google accounts linked" },
         { status: 400 }
+      )
+    }
+
+    /* ---------- CHECK DUPLICATE MEETING ---------- */
+    // Check if meeting already exists at same time for same project/role
+    const startDate = new Date(startTime)
+    const endDate = new Date(endTime)
+
+    const duplicateQuery: any = {
+      startTime: { $lte: endDate },
+      endTime: { $gte: startDate },
+      status: { $ne: 'cancelled' }
+    }
+
+    // Add project or role filter
+    if (projectName) {
+      duplicateQuery.projectName = projectName
+    } else if (workingRole) {
+      duplicateQuery.workingRole = workingRole
+    }
+
+    const existingMeeting = await Meeting.findOne(duplicateQuery)
+
+    if (existingMeeting) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          message: `Meeting already scheduled at this time for ${projectName || workingRole}` 
+        },
+        { status: 409 }
       )
     }
 

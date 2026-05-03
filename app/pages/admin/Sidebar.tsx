@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { LayoutDashboard, Users, Folder, Settings, Calendar, Camera, Video, Megaphone } from "lucide-react"
+import { LayoutDashboard, Users, Folder, Settings, Calendar, Camera, Video, Megaphone, FileText } from "lucide-react"
 import { useTheme } from "../../../contexts/ThemeContext"
 import { meet } from "googleapis/build/src/apis/meet"
 
@@ -12,7 +12,8 @@ const menu = [
   { name: "Projects", icon: Folder, path: "/admin/projects" },
   { name: "meetings", icon: Video, path: "/admin/meetings" },
   { name: "Attendance & Leave", icon: Calendar, path: "/admin/attendanceandLeave" },
-  { name: "Announcements", icon: Megaphone, path: "/admin/announcements" }
+  { name: "Announcements", icon: Megaphone, path: "/admin/announcements" },
+  { name: "Reports", icon: FileText, path: "/admin/reports" }
 ]
 
 export default function Sidebar() {
@@ -53,7 +54,7 @@ export default function Sidebar() {
           fixed 
           left-4 
           top-20     /* navbar ke niche */
-          h-[620px] 
+          h-[650px] 
           w-24
           ${theme === 'dark' ? 'bg-[#1a1a1a]' : 'bg-[#f3f2ff]'} 
           flex flex-col items-center 

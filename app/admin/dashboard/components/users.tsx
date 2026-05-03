@@ -66,7 +66,7 @@ export default function UsersCard() {
         </defs>
       </svg>
 
-      <div className="relative w-[260px] h-[200px] overflow-visible">
+      <div className="relative w-[260px] h-[200px] overflow-visible group">
 
         {/* Base Card */}
         <div className={`${isDark ? 'bg-indigo-900/30' : 'bg-indigo-100'} rounded-2xl p-5 shadow-sm h-full`}>
@@ -88,7 +88,7 @@ export default function UsersCard() {
           className={`
             absolute top-0 left-0 w-full h-full
             ${isDark ? 'bg-gray-800' : 'bg-white'}
-            rounded-2xl p-5 shadow-md
+            rounded-2xl p-5 shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-300
           `}
         >
           {/* Top Row */}

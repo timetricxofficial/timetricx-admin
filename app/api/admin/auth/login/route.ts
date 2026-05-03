@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import connectDB from '@/lib/database'
-import { Admin } from '@/models/Admin'
+import { Admin, IAdmin } from '@/models/Admin'
 import bcrypt from 'bcryptjs'
 import { generateToken } from '@/utils/generateToken'
 
@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Find admin with matching password
-    let matchedAdmin = null
+    let matchedAdmin: IAdmin | null = null
     for (const admin of admins) {
       const isMatch = await bcrypt.compare(password, admin.password)
       if (isMatch) {

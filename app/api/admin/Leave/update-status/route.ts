@@ -19,9 +19,9 @@ export async function PUT(req: NextRequest) {
       )
     }
 
-    if (!['approved', 'rejected'].includes(status)) {
+    if (!['approved', 'rejected', 'pending'].includes(status)) {
       return NextResponse.json(
-        { success: false, message: 'Invalid status. Must be approved or rejected' },
+        { success: false, message: 'Invalid status. Must be approved, rejected, or pending' },
         { status: 400 }
       )
     }
@@ -44,6 +44,10 @@ export async function PUT(req: NextRequest) {
     } else if (status === 'rejected') {
       updateData.rejectionReason = rejectionReason.trim()
       updateData.approvedAt = null
+    } else if (status === 'pending') {
+      // Reset approval/rejection data when setting back to pending
+      updateData.approvedAt = null
+      updateData.rejectionReason = null
     }
 
     const updatedLeave = await Leave.findByIdAndUpdate(
