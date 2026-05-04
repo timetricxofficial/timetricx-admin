@@ -88,7 +88,10 @@ export async function GET(req: NextRequest) {
             const entryDateTime = new Date(today)
             entryDateTime.setHours(hours, minutes || 0, seconds || 0)
             
-            const diffInHours = (new Date().getTime() - entryDateTime.getTime()) / (1000 * 60 * 60)
+            const nowIst = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }))
+            const diffInHours = (nowIst.getTime() - entryDateTime.getTime()) / (1000 * 60 * 60)
+            
+            // Reverted to 6 hours as requested, but using IST for 'now'
             isCheckedIn = diffInHours >= 0 && diffInHours <= 6
           } catch (e) {
             isCheckedIn = true
