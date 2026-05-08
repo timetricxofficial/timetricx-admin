@@ -13,6 +13,8 @@ export interface IMeeting extends Document {
   startTime: Date;
   endTime: Date;
 
+  isPinned?: boolean;
+
   status: "scheduled" | "ongoing" | "completed" | "cancelled";
 
   createdAt: Date;
@@ -25,7 +27,8 @@ const MeetingSchema = new Schema(
       type: String,
     },
     projectId: {
-      type: String,
+      type: Schema.Types.ObjectId,
+      ref: "Project",
     },
     workingRole: {
       type: String,
@@ -34,6 +37,7 @@ const MeetingSchema = new Schema(
     hostEmail: {
       type: String,
       required: true,
+      index: true,
     },
 
     participants: [String],
@@ -51,6 +55,11 @@ const MeetingSchema = new Schema(
     endTime: {
       type: Date,
       required: true,
+    },
+
+    isPinned: {
+      type: Boolean,
+      default: false,
     },
 
     status: {

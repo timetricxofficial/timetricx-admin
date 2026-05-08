@@ -88,7 +88,10 @@ export async function GET(req: NextRequest) {
             const entryDateTime = new Date(today)
             entryDateTime.setHours(hours, minutes || 0, seconds || 0)
             
-            const diffInHours = (new Date().getTime() - entryDateTime.getTime()) / (1000 * 60 * 60)
+            const nowIst = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }))
+            const diffInHours = (nowIst.getTime() - entryDateTime.getTime()) / (1000 * 60 * 60)
+            
+            // Reverted to 6 hours as requested, but using IST for 'now'
             isCheckedIn = diffInHours >= 0 && diffInHours <= 6
           } catch (e) {
             isCheckedIn = true
@@ -119,6 +122,12 @@ export async function GET(req: NextRequest) {
 
     const logs = await FaceVerificationLog.find(query).sort({ date: -1 })
     
+    // Fetch entry time from FaceAttendance for the specified dates
+    const attendanceRecords = await FaceAttendance.find({
+      userEmail: email,
+      'months.records.date': { $in: logs.map(l => l.date) }
+    })
+
     // Aggregating all sessions across selected dates
     let allSessions: any[] = []
     let totalStats = { total: 0, success: 0, suspicious: 0, missed: 0, partial: 0 }
@@ -127,6 +136,14 @@ export async function GET(req: NextRequest) {
     let totalPartialAttempts = 0
 
     logs.forEach(log => {
+      // Find entry time for this specific log date
+      const attendance = attendanceRecords.find(a => 
+        a.months.some(m => m.records.some(r => r.date === log.date))
+      )
+      const month = attendance?.months.find(m => m.records.some(r => r.date === log.date))
+      const record = month?.records.find(r => r.date === log.date)
+      const entryTime = record?.entryTime || null
+
       log.sessions.forEach((s: any) => {
         totalStats.total++
         
@@ -156,6 +173,7 @@ export async function GET(req: NextRequest) {
         
         allSessions.push({
           date: log.date,
+          entryTime, // Pass entry time to frontend
           ...s.toObject(),
           failureCount: sessionFailures // track for UI
         })

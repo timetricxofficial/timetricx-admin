@@ -20,7 +20,8 @@ export default function AddMeeting({ onClose }: { onClose: () => void }) {
     date: '',
     startTime: '',
     endTime: '',
-    meetingLink: ''
+    meetingLink: '',
+    isPinned: false
   })
 
   useEffect(() => {
@@ -59,16 +60,30 @@ export default function AddMeeting({ onClose }: { onClose: () => void }) {
     if (!form.projectName && !form.workingRole && !form.userEmail) {
       return error('Select at least one: Project, Working Role, or User Email')
     }
-    if (!form.date || !form.startTime || !form.endTime)
-      return error('Select date & time')
+
+    // Date/Time validation only if NOT pinned
+    if (!form.isPinned) {
+      if (!form.date || !form.startTime || !form.endTime)
+        return error('Select date & time')
+    }
+
     if (!form.meetingLink) return error('Enter meeting link')
 
     setIsSubmitting(true)
 
     try {
-      // Create ISO datetime strings from date + time
-      const startDateTime = new Date(`${form.date}T${form.startTime}`).toISOString()
-      const endDateTime = new Date(`${form.date}T${form.endTime}`).toISOString()
+      let startDateTime, endDateTime;
+
+      if (form.isPinned) {
+        // For pinned meetings, use a far-future date or just today's date as placeholder
+        // Since the schema requires a Date, we provide one but UI will ignore it
+        const today = new Date().toISOString().split('T')[0];
+        startDateTime = new Date(`${today}T00:00:00`).toISOString();
+        endDateTime = new Date(`${today}T23:59:59`).toISOString();
+      } else {
+        startDateTime = new Date(`${form.date}T${form.startTime}`).toISOString();
+        endDateTime = new Date(`${form.date}T${form.endTime}`).toISOString();
+      }
 
       const res = await fetch('/api/admin/meetings/create', {
         method: 'POST',
@@ -80,7 +95,8 @@ export default function AddMeeting({ onClose }: { onClose: () => void }) {
           userEmail: form.userEmail,
           meetingLink: form.meetingLink,
           startTime: startDateTime,
-          endTime: endDateTime
+          endTime: endDateTime,
+          isPinned: form.isPinned
         })
       })
 
@@ -134,6 +150,7 @@ export default function AddMeeting({ onClose }: { onClose: () => void }) {
             <Select
               label="Host Email"
               value={form.hostEmail}
+              placeholder="Select Host"
               onChange={(v: string) =>
                 setForm({ ...form, hostEmail: v })
               }
@@ -215,37 +232,69 @@ export default function AddMeeting({ onClose }: { onClose: () => void }) {
               theme={theme}
             />
 
-            <Row>
-              <Input
-                type="date"
-                label="Date"
-                value={form.date}
-                onChange={(v: string) =>
-                  setForm({ ...form, date: v })
-                }
-                theme={theme}
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '10px', 
+              marginBottom: '15px',
+              padding: '10px',
+              borderRadius: '10px',
+              background: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
+              border: '1px solid rgba(59,130,246,0.2)'
+            }}>
+              <label style={{ 
+                fontSize: '13px', 
+                fontWeight: 600, 
+                color: theme === 'dark' ? '#fff' : '#111',
+                flex: 1
+              }}>
+                📌 Pin this meeting (Permanent Room)
+              </label>
+              <input 
+                type="checkbox" 
+                checked={form.isPinned}
+                onChange={(e) => setForm({ ...form, isPinned: e.target.checked })}
+                style={{ width: '18px', height: '18px', cursor: 'pointer' }}
               />
+            </div>
 
-              <Input
-                type="time"
-                label="Start Time"
-                value={form.startTime}
-                onChange={(v: string) =>
-                  setForm({ ...form, startTime: v })
-                }
-                theme={theme}
-              />
-            </Row>
+            {!form.isPinned && (
+              <>
+                <Row>
+                  <Input
+                    type="date"
+                    label="Date"
+                    value={form.date}
+                    onChange={(v: string) =>
+                      setForm({ ...form, date: v })
+                    }
+                    theme={theme}
+                  />
+                </Row>
 
-            <Input
-              type="time"
-              label="End Time"
-              value={form.endTime}
-              onChange={(v: string) =>
-                setForm({ ...form, endTime: v })
-              }
-              theme={theme}
-            />
+                <Row>
+                  <Input
+                    type="time"
+                    label="Start Time"
+                    value={form.startTime}
+                    onChange={(v: string) =>
+                      setForm({ ...form, startTime: v })
+                    }
+                    theme={theme}
+                  />
+
+                  <Input
+                    type="time"
+                    label="End Time"
+                    value={form.endTime}
+                    onChange={(v: string) =>
+                      setForm({ ...form, endTime: v })
+                    }
+                    theme={theme}
+                  />
+                </Row>
+              </>
+            )}
 
           </Box>
 
@@ -339,7 +388,7 @@ function Btn({ children, onClick, primary, theme, disabled }: any) {
   )
 }
 
-function Select({ label, value, onChange, options, theme }: any) {
+function Select({ label, value, onChange, options, theme, placeholder }: any) {
   return (
     <div style={{ marginBottom: 12 }}>
       <label style={{
@@ -373,7 +422,7 @@ function Select({ label, value, onChange, options, theme }: any) {
             color: theme === 'dark' ? '#fff' : '#111'
           }}
         >
-          {label.includes('Project') ? 'Select Project' : 'Select Role'}
+          {placeholder || (label.includes('Project') ? 'Select Project' : 'Select Role')}
         </option>
         {options.map((o: any) => (
           <option 

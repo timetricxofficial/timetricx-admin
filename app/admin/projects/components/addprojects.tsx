@@ -18,7 +18,8 @@ export default function AddProject({ onClose }: { onClose: () => void }) {
     deadline: '',
     totalTasks: '',
     descriptionDriveLink: '',
-    teamEmails: []
+    teamEmails: [],
+    assignedUserEmail: ''
   })
 
   /* ---------- SKILL SEARCH ---------- */
@@ -28,6 +29,10 @@ export default function AddProject({ onClose }: { onClose: () => void }) {
   /* ---------- ROLE SEARCH ---------- */
   const [roleQuery, setRoleQuery] = useState('')
   const [roleUsers, setRoleUsers] = useState<any[]>([])
+
+  /* ---------- EMAIL SEARCH ---------- */
+  const [emailQuery, setEmailQuery] = useState('')
+  const [emailUsers, setEmailUsers] = useState<any[]>([])
 
   const workingRoles = [
     'Frontend Developer',
@@ -78,6 +83,26 @@ export default function AddProject({ onClose }: { onClose: () => void }) {
     setRoleUsers(data.data || [])
   }
 
+  /* ---------- EMAIL SEARCH API ---------- */
+  const searchByEmail = async (value: string) => {
+    setEmailQuery(value)
+
+    if (value.length < 3) {
+      setEmailUsers([])
+      return
+    }
+
+    try {
+      // We can reuse a generic search or create a new endpoint. 
+      // For now, let's assume we can search by email using a query param.
+      const res = await fetch(`/api/admin/users/get-all-users?search=${value}&limit=5`)
+      const data = await res.json()
+      setEmailUsers(data.data || [])
+    } catch (err) {
+      console.error('Failed to search by email', err)
+    }
+  }
+
   /* ---------- CREATE PROJECT ---------- */
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -88,8 +113,9 @@ export default function AddProject({ onClose }: { onClose: () => void }) {
       return
     }
     
-    if (!form.teamEmails || form.teamEmails.length === 0) {
-      error('Please add at least one team member')
+    // Check if we have team members OR an assigned user email
+    if ((!form.teamEmails || form.teamEmails.length === 0) && !form.assignedUserEmail.trim()) {
+      error('Please add at least one team member or an assigned user email')
       return
     }
 
@@ -107,6 +133,7 @@ export default function AddProject({ onClose }: { onClose: () => void }) {
           deadline: form.deadline,
           descriptionDriveLink: form.descriptionDriveLink,
           teamEmails: form.teamEmails,
+          assignedUserEmail: form.assignedUserEmail, // New field
           tasks: {
             total: Number(form.totalTasks)
           }
@@ -240,13 +267,22 @@ export default function AddProject({ onClose }: { onClose: () => void }) {
               placeholder="https://drive.google.com/..."
               theme={theme}
             />
+
+            <Input
+              label="Assigned User Email (Match via Email or Google Auth)"
+              type="email"
+              value={form.assignedUserEmail}
+              onChange={(v: string) => setForm({ ...form, assignedUserEmail: v })}
+              placeholder="user@example.com"
+              theme={theme}
+            />
           </Box>
 
           {/* TEAM MEMBERS */}
           <Box theme={theme} title="Team Members" mt>
             
-            {/* Search Row - 2 Columns */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+            {/* Search Row - 3 Columns */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
               {/* Search by Skill */}
               <div>
                 <Input
@@ -334,7 +370,7 @@ export default function AddProject({ onClose }: { onClose: () => void }) {
                 <Select
                   label="Search by Working Role"
                   value={roleQuery}
-                  options={['', ...workingRoles]}
+                  options={['Select Working Role', ...workingRoles]}
                   onChange={searchByRole}
                   theme={theme}
                 />
@@ -409,6 +445,51 @@ export default function AddProject({ onClose }: { onClose: () => void }) {
                           : 'Deselect All'}
                       </button>
                     )}
+                  </div>
+                )}
+              </div>
+
+              {/* Search by Email */}
+              <div>
+                <Input
+                  label="Search by Email"
+                  value={emailQuery}
+                  onChange={searchByEmail}
+                  theme={theme}
+                  placeholder="Type email..."
+                />
+                
+                {/* Email Users Results */}
+                {emailUsers.length > 0 && (
+                  <div style={{ marginTop: 8 }}>
+                    <p style={{ fontSize: 11, color: theme === 'dark' ? '#888' : '#666', marginBottom: 4 }}>Email Results</p>
+                    {emailUsers.filter(u => !form.teamEmails.includes(u.email)).map(u => (
+                      <div
+                        key={`email-search-${u.email}`}
+                        onClick={() => {
+                          if (!form.teamEmails.includes(u.email)) {
+                            setForm({
+                              ...form,
+                              teamEmails: [...form.teamEmails, u.email]
+                            })
+                          }
+                        }}
+                        style={{
+                          padding: 8,
+                          marginTop: 4,
+                          borderRadius: 6,
+                          cursor: 'pointer',
+                          background: theme === 'dark'
+                            ? 'rgba(139,92,246,0.15)'
+                            : 'rgba(139,92,246,0.1)',
+                          borderLeft: '2px solid #8b5cf6',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        <b style={{ fontSize: 12 }}>{u.name}</b>
+                        <div style={{ fontSize: 10, color: theme === 'dark' ? '#aaa' : '#666' }}>{u.email}</div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>

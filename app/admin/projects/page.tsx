@@ -1,13 +1,14 @@
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
-import { Search, Plus, Edit, Ban, Trash2, CheckCircle, Link as LinkIcon } from 'lucide-react'
+import { Search, Plus, Edit, Ban, Trash2, CheckCircle, Link as LinkIcon, Users } from 'lucide-react'
 import { useTheme } from '../../../contexts/ThemeContext'
 import { useToast } from '../../../contexts/ToastContext'
 import Swal from 'sweetalert2'
 import AddProject from './components/addprojects'
 import EditProjects from './components/editprojects'
 import ProjectLinksModal from './components/ProjectLinksModal'
+import ViewTeamModal from './components/ViewTeamModal'
 import { useInfiniteScroll } from '../../../hooks/useInfiniteScroll'
 
 interface Project {
@@ -16,6 +17,7 @@ interface Project {
   status: 'active' | 'completed' | 'pending'
   progress: number
   isDisabled: boolean
+  teamEmails: string[]
 }
 
 interface CurrentAdmin {
@@ -49,6 +51,11 @@ export default function AdminProjectsPage() {
   // Project Links Modal State
   const [openLinksModal, setOpenLinksModal] = useState(false)
   const [selectedProjectName, setSelectedProjectName] = useState('')
+
+  // View Team Modal State
+  const [viewTeamOpen, setViewTeamOpen] = useState(false)
+  const [selectedTeam, setSelectedTeam] = useState<string[]>([])
+  const [selectedProjectForTeam, setSelectedProjectForTeam] = useState('')
 
   // 🔥 Get current admin from API (fresh data from DB)
   useEffect(() => {
@@ -317,6 +324,19 @@ export default function AdminProjectsPage() {
 
                 {/* ACTIONS */}
                 <td className="p-3 flex justify-center gap-3">
+                  {/* View Team */}
+                  <button
+                    onClick={() => {
+                      setSelectedTeam(project.teamEmails || [])
+                      setSelectedProjectForTeam(project.name)
+                      setViewTeamOpen(true)
+                    }}
+                    title="View Team"
+                    className="text-indigo-500 hover:scale-110 cursor-pointer"
+                  >
+                    <Users size={18} />
+                  </button>
+
                   {/* Disable/Enable */}
                   <button
                     onClick={() => canToggle() && toggleProjectStatus(project._id, project.isDisabled)}
@@ -408,6 +428,15 @@ export default function AdminProjectsPage() {
         isOpen={openLinksModal}
         onClose={() => setOpenLinksModal(false)}
         projectName={selectedProjectName}
+      />
+
+      {/* VIEW TEAM MODAL */}
+      <ViewTeamModal
+        isOpen={viewTeamOpen}
+        onClose={() => setViewTeamOpen(false)}
+        teamEmails={selectedTeam}
+        projectName={selectedProjectForTeam}
+        theme={theme}
       />
     </div>
   )

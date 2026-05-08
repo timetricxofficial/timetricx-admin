@@ -5,6 +5,7 @@ import { useTheme } from '@/contexts/ThemeContext'
 import { ArrowLeft, Calendar, Download, FileText, Layout, Info } from 'lucide-react'
 import html2canvas from 'html2canvas-pro'
 import jsPDF from 'jspdf'
+import { ExportTemplate } from './ExportTemplate'
 
 // Components
 import ReportHeader from './ReportHeader'
@@ -131,12 +132,169 @@ export default function FaceVerificationReport({ user, onBack }: FaceVerificatio
     // Behavior Tag: Based on Fail Ratio (failed / total)
     const totalAttempts = attempts.length
     const failedAttempts = attempts.filter(a => a.status === 'FAILED').length
+    const suspiciousAttempts = attempts.filter(a => a.confidence < 0.25).length
     const failRatio = totalAttempts > 0 ? (failedAttempts / totalAttempts) * 100 : 0
+    
+    // Calculate max inactivity gap
+    let maxGapHours = 0;
+    if (rawData.length > 1) {
+      const sortedSessions = [...rawData].sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+      for (let i = 0; i < sortedSessions.length - 1; i++) {
+        const gap = (new Date(sortedSessions[i+1].startTime).getTime() - new Date(sortedSessions[i].endTime).getTime()) / (1000 * 60 * 60);
+        if (gap > maxGapHours) maxGapHours = gap;
+      }
+    }
 
     let behavior: 'Reliable' | 'Inconsistent' | 'Suspicious' = 'Reliable'
     if (failRatio > 50) behavior = 'Suspicious'
     else if (failRatio >= 30) behavior = 'Inconsistent'
     else behavior = 'Reliable'
+
+    // Calculate session segments (three 2-hour segments starting from first check-in)
+    const sortedRawSessions = [...rawData].sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+    const firstCheckIn = sortedRawSessions.length > 0 ? new Date(sortedRawSessions[0].startTime) : null;
+    
+    const getSegmentData = (startHourOffset: number, endHourOffset: number) => {
+      if (!firstCheckIn) return [];
+      const segmentStart = new Date(firstCheckIn.getTime() + startHourOffset * 60 * 60 * 1000);
+      const segmentEnd = new Date(firstCheckIn.getTime() + endHourOffset * 60 * 60 * 1000);
+      
+      return attempts.filter(a => {
+        // We need to parse the time string back or use the original timestamps.
+        // Let's use the raw attempts directly for better accuracy if possible, 
+        // but here 'attempts' is already mapped. Let's re-map with full date.
+        return rawData.flatMap(s => s.attempts || []).some(ra => {
+          const raTime = new Date(ra.time).getTime();
+          return raTime >= segmentStart.getTime() && raTime < segmentEnd.getTime() && 
+                 getCategory(ra.confidence) === a.category; // Simple match logic
+        });
+      });
+    };
+
+    const getSessionSegment = (startH: number, endH: number) => {
+      // Find the first entryTime from rawData if available
+      const firstSessionWithEntry = rawData.find(s => s.entryTime);
+      let sessionStartTime: Date | null = null;
+      let sessionExitTime: Date | null = null;
+
+      if (firstSessionWithEntry?.entryTime) {
+        try {
+          const timeStr = firstSessionWithEntry.entryTime.toLowerCase();
+          const parts = timeStr.split(' ');
+          const timePart = parts[0];
+          const modifier = parts[1] || (timeStr.includes('am') ? 'am' : timeStr.includes('pm') ? 'pm' : '');
+          
+          let [hours, minutes] = timePart.replace(/[apm]/g, '').split(':').map(Number);
+          if (modifier === 'pm' && hours < 12) hours += 12;
+          if (modifier === 'am' && hours === 12) hours = 0;
+
+          sessionStartTime = new Date(firstSessionWithEntry.startTime);
+          sessionStartTime.setHours(hours, minutes || 0, 0, 0);
+
+          if (firstSessionWithEntry.exitTime) {
+            const exitTimeStr = firstSessionWithEntry.exitTime.toLowerCase();
+            const exitParts = exitTimeStr.split(' ');
+            const exitTimePart = exitParts[0];
+            const exitModifier = exitParts[1] || (exitTimeStr.includes('am') ? 'am' : exitTimeStr.includes('pm') ? 'pm' : '');
+            let [eHours, eMinutes] = exitTimePart.replace(/[apm]/g, '').split(':').map(Number);
+            if (exitModifier === 'pm' && eHours < 12) eHours += 12;
+            if (exitModifier === 'am' && eHours === 12) eHours = 0;
+            sessionExitTime = new Date(firstSessionWithEntry.startTime);
+            sessionExitTime.setHours(eHours, eMinutes || 0, 0, 0);
+          }
+        } catch (e) {
+          console.error("Error parsing times:", e);
+        }
+      }
+
+      const referenceTime = sessionStartTime || firstCheckIn;
+      if (!referenceTime) return [];
+
+      const sTime = referenceTime.getTime() + startH * 60 * 60 * 1000;
+      const eTime = referenceTime.getTime() + endH * 60 * 60 * 1000;
+
+      const isToday = new Date(referenceTime).toDateString() === new Date().toDateString();
+      const hasExit = !!sessionExitTime;
+      const duration = hasExit && sessionExitTime ? (sessionExitTime.getTime() - referenceTime.getTime()) / (1000 * 60 * 60) : 0;
+
+      let sessionStatus = 'COMPLETED';
+      if (isToday) {
+        if (!hasExit) {
+          sessionStatus = 'IN-PROGRESS';
+        } else {
+          sessionStatus = duration >= 6 ? 'COMPLETED' : 'INCOMPLETE';
+        }
+      } else {
+        // For past dates
+        if (!hasExit) {
+          sessionStatus = 'COMPLETED'; // Entry exists but no exit for past date
+        } else {
+          // If duration is 0 (shouldn't happen with hasExit=true) or less than 6
+          sessionStatus = duration >= 6 ? 'COMPLETED' : 'INCOMPLETE';
+        }
+      }
+
+      // Final fallback: If it's a past date and still saying IN-PROGRESS, force COMPLETED
+      if (!isToday && sessionStatus === 'IN-PROGRESS') {
+        sessionStatus = 'COMPLETED';
+      }
+
+      return {
+        data: rawData.flatMap(s => s.attempts || [])
+          .filter(a => {
+            const t = new Date(a.time).getTime();
+            return t >= sTime && t < eTime;
+          })
+          .map(a => ({
+            time: new Date(a.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' }),
+            confidence: a.confidence,
+            status: a.confidence >= 0.5 ? 'SUCCESS' : a.confidence >= 0.25 ? 'PARTIAL' : 'FAILED'
+          })),
+        sessionStatus
+      };
+    };
+
+    const formatSegmentLabel = (startH: number, endH: number) => {
+      const firstSessionWithEntry = rawData.find(s => s.entryTime);
+      let sessionStartTime: Date | null = null;
+
+      if (firstSessionWithEntry?.entryTime) {
+        try {
+          const timeStr = firstSessionWithEntry.entryTime.toLowerCase();
+          const parts = timeStr.split(' ');
+          const timePart = parts[0];
+          const modifier = parts[1] || (timeStr.includes('am') ? 'am' : timeStr.includes('pm') ? 'pm' : '');
+          
+          let [hours, minutes] = timePart.replace(/[apm]/g, '').split(':').map(Number);
+          if (modifier === 'pm' && hours < 12) hours += 12;
+          if (modifier === 'am' && hours === 12) hours = 0;
+
+          sessionStartTime = new Date(firstSessionWithEntry.startTime);
+          sessionStartTime.setHours(hours, minutes || 0, 0, 0);
+        } catch (e) {}
+      }
+
+      const referenceTime = sessionStartTime || firstCheckIn;
+      if (!referenceTime) return "";
+
+      const s = new Date(referenceTime.getTime() + startH * 60 * 60 * 1000);
+      const e = new Date(referenceTime.getTime() + endH * 60 * 60 * 1000);
+      const opt: any = { hour: '2-digit', minute: '2-digit', hour12: true };
+      return `${s.toLocaleTimeString('en-IN', opt)} - ${e.toLocaleTimeString('en-IN', opt)}`;
+    };
+
+    const exportStats = {
+      total: totalAttempts,
+      success: attempts.filter(a => a.confidence >= 0.5).length,
+      suspicious: suspiciousAttempts,
+      avgConfidence,
+      maxGapHours: parseFloat(maxGapHours.toFixed(1)),
+      segments: firstCheckIn ? [
+        { label: `Initial Session (${formatSegmentLabel(0, 2)})`, ...getSessionSegment(0, 2) },
+        { label: `Mid Session (${formatSegmentLabel(2, 4)})`, ...getSessionSegment(2, 4) },
+        { label: `Final Session (${formatSegmentLabel(4, 6)})`, ...getSessionSegment(4, 6) }
+      ] : []
+    };
 
     // Insights
     const insights: any[] = []
@@ -144,7 +302,7 @@ export default function FaceVerificationReport({ user, onBack }: FaceVerificatio
     if (attempts.some(a => a.confidence < 0.4 && a.confidence >= 0.25)) insights.push({ type: 'warning', text: 'Some attempts have low confidence. Ensure proper lighting and front face.' })
     if (avgConfidence >= 0.5) insights.push({ type: 'info', text: 'Overall presence is acceptable but consistency can be improved.' })
 
-    return { attempts, avgConfidence, highestConfidence, status, breakdown, behavior, insights, consistency }
+    return { attempts, avgConfidence, highestConfidence, status, breakdown, behavior, insights, consistency, exportStats }
   }
 
   const processMultiDay = () => {
@@ -246,8 +404,115 @@ export default function FaceVerificationReport({ user, onBack }: FaceVerificatio
         
         tempContainer.appendChild(sanitizedElement);
 
+        // --- Render and Add Page 2 & 3 during Export ONLY ---
+        let page2Canvas: HTMLCanvasElement | null = null;
+        let page3Canvas: HTMLCanvasElement | null = null;
+
+        if (!isMultiDay && singleDayData) {
+          const exportContainer = document.createElement('div');
+          exportContainer.style.position = 'absolute';
+          exportContainer.style.left = '-9999px';
+          exportContainer.style.top = '-9999px';
+          exportContainer.style.width = '1200px';
+          document.body.appendChild(exportContainer);
+
+          // Use React to render the template to string/DOM
+          const { createRoot } = await import('react-dom/client');
+          const rootNode = document.createElement('div');
+          exportContainer.appendChild(rootNode);
+          const root = createRoot(rootNode);
+          
+          await new Promise<void>((resolve) => {
+            root.render(
+              <ExportTemplate 
+                user={user} 
+                stats={singleDayData.exportStats} 
+                insights={singleDayData.insights} 
+                date={fromDate}
+                isMultiDay={false}
+              />
+            );
+            // Wait longer for render and icons to load
+            setTimeout(resolve, 1500);
+          });
+
+          // Force Lucide icons to render by waiting a bit more if needed
+          const p2Element = exportContainer.querySelector('#pdf-page-2') as HTMLElement;
+          const p3Element = exportContainer.querySelector('#pdf-page-3') as HTMLElement;
+
+          if (p2Element) {
+            page2Canvas = await html2canvas(p2Element, { 
+              scale: 1.5, 
+              useCORS: true, 
+              logging: false,
+              backgroundColor: '#ffffff'
+            });
+          }
+          if (p3Element) {
+            page3Canvas = await html2canvas(p3Element, { 
+              scale: 1.5, 
+              useCORS: true, 
+              logging: false,
+              backgroundColor: '#ffffff'
+            });
+          }
+
+          document.body.removeChild(exportContainer);
+        } else if (isMultiDay && multiDayData) {
+          const exportContainer = document.createElement('div');
+          exportContainer.style.position = 'absolute';
+          exportContainer.style.left = '-9999px';
+          exportContainer.style.top = '-9999px';
+          exportContainer.style.width = '1200px';
+          document.body.appendChild(exportContainer);
+
+          // Use React to render the template to string/DOM
+          const { createRoot } = await import('react-dom/client');
+          const rootNode = document.createElement('div');
+          exportContainer.appendChild(rootNode);
+          const root = createRoot(rootNode);
+          
+          await new Promise<void>((resolve) => {
+            root.render(
+              <ExportTemplate 
+                user={user} 
+                stats={{ total: multiDayData.summary.totalDays, success: multiDayData.summary.presentDays, suspicious: multiDayData.summary.absentDays, avgConfidence: multiDayData.summary.avgConfidence, maxGapHours: 0 }} 
+                insights={[]} 
+                date={`${fromDate} to ${toDate}`}
+                isMultiDay={true}
+                multiDayData={multiDayData}
+              />
+            );
+            // Wait longer for render and icons to load
+            setTimeout(resolve, 1500);
+          });
+
+          // Force Lucide icons to render by waiting a bit more if needed
+          const p2Element = exportContainer.querySelector('#pdf-page-2') as HTMLElement;
+          const p3Element = exportContainer.querySelector('#pdf-page-3') as HTMLElement;
+
+          if (p2Element) {
+            page2Canvas = await html2canvas(p2Element, { 
+              scale: 1.5, 
+              useCORS: true, 
+              logging: false,
+              backgroundColor: '#ffffff'
+            });
+          }
+          if (p3Element) {
+            page3Canvas = await html2canvas(p3Element, { 
+              scale: 1.5, 
+              useCORS: true, 
+              logging: false,
+              backgroundColor: '#ffffff'
+            });
+          }
+
+          document.body.removeChild(exportContainer);
+        }
+
         const canvas = await html2canvas(sanitizedElement, {
-          scale: 2,
+          scale: 1.5,
           useCORS: true,
           backgroundColor: '#ffffff',
           logging: false,
@@ -257,28 +522,39 @@ export default function FaceVerificationReport({ user, onBack }: FaceVerificatio
         // Cleanup
         document.body.removeChild(tempContainer);
         
-        const imgData = canvas.toDataURL('image/png')
-        const pdf = new jsPDF('p', 'mm', 'a4')
-        const pdfWidth = pdf.internal.pageSize.getWidth()
-        const pdfHeight = pdf.internal.pageSize.getHeight()
+        // Final sanity check on dimensions to avoid any jsPDF errors
+        const contentWidth = canvas.width || 1200;
+        const contentHeight = canvas.height || 1600;
         
-        const imgWidth = pdfWidth
-        const imgHeight = (canvas.height * imgWidth) / canvas.width
-        
-        let heightLeft = imgHeight
-        let position = 0
-        
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
-        heightLeft -= pdfHeight
-        
-        while (heightLeft >= 0) {
-          position = heightLeft - imgHeight
-          pdf.addPage()
-          pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
-          heightLeft -= pdfHeight
+        const pdf = new jsPDF({
+          orientation: 'p',
+          unit: 'px',
+          format: [contentWidth, contentHeight],
+          hotfixes: ["px_tracking"]
+        });
+
+        const imgData = canvas.toDataURL('image/jpeg', 0.8);
+        pdf.addImage(imgData, 'JPEG', 0, 0, contentWidth, contentHeight);
+
+        // Add Page 2: Summary & Analysis
+        if (page2Canvas) {
+          const p2Width = page2Canvas.width || 1200;
+          const p2Height = page2Canvas.height || 1600;
+          pdf.addPage([p2Width, p2Height], 'p');
+          const p2Data = page2Canvas.toDataURL('image/jpeg', 0.8);
+          pdf.addImage(p2Data, 'JPEG', 0, 0, p2Width, p2Height);
+        }
+
+        // Add Page 3: Detailed Findings
+        if (page3Canvas) {
+          const p3Width = page3Canvas.width || 1200;
+          const p3Height = page3Canvas.height || 1600;
+          pdf.addPage([p3Width, p3Height], 'p');
+          const p3Data = page3Canvas.toDataURL('image/jpeg', 0.8);
+          pdf.addImage(p3Data, 'JPEG', 0, 0, p3Width, p3Height);
         }
         
-        pdf.save(`Presence_Report_${user.name}_${fromDate}.pdf`)
+        pdf.save(`Presence_Report_${user.name}_${isMultiDay ? `${fromDate}_to_${toDate}` : fromDate}.pdf`);
       } catch (err) {
         console.error("PDF Export failed:", err);
       } finally {

@@ -30,7 +30,7 @@ export default function InternsList({ onViewDetail }: { onViewDetail: (user: any
     }
   }
 
-  const filteredUsers = users.filter(u => 
+   const filteredUsers = users.filter(u => 
     u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     u.email.toLowerCase().includes(searchQuery.toLowerCase())
   )
@@ -186,9 +186,15 @@ Z
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
                   
-                  <div className="relative w-15 h-15 mt-2 ml-2">
-                    <div className="absolute inset-0 rounded-xl border-2 border-indigo-500/20"></div>
-                    <div className="absolute inset-0.5 rounded-xl bg-indigo-500/10 flex items-center justify-center overflow-hidden shadow">
+                  <div className="relative w-15 h-15 mt-2 ml-2 flex items-center justify-center">
+                    {/* Rotating Laser Light Effect */}
+                    <div className="absolute w-[200%] h-[200%] bg-conic-gradient from-transparent via-indigo-500/40 to-transparent animate-[spin_4s_linear_infinite] opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none z-0"></div>
+                    
+                    {/* Scatter Glow Effect */}
+                    <div className="absolute -inset-2 bg-indigo-500/20 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                    
+                    <div className="absolute inset-0 rounded-xl border-2 border-indigo-500/20 shadow-[0_0_10px_rgba(79,70,229,0.2)]"></div>
+                    <div className="absolute inset-0.5 rounded-xl bg-indigo-500/10 flex items-center justify-center overflow-hidden shadow relative z-10">
                       {user.profilePicture ? (
                         <img src={user.profilePicture} alt={user.name} className="w-full h-full object-cover" />
                       ) : (

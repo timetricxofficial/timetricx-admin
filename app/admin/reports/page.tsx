@@ -18,7 +18,7 @@ const reportCategories = [
     title: 'Attendance Report',
     description: 'Comprehensive attendance analytics and summaries',
     icon: CalendarCheck,
-    href: '/admin/reports',
+    href: '/admin/reports/attendance-report',
     color: 'bg-green-500',
   },
   {
@@ -26,7 +26,7 @@ const reportCategories = [
     title: 'Leave Report',
     description: 'Track and analyze leave patterns and approvals',
     icon: Clock,
-    href: '/admin/reports',
+    href: '/admin/reports/leave-report',
     color: 'bg-orange-500',
   },
   {
