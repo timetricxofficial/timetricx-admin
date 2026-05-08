@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
     const total = await User.countDocuments(filter)
 
     const users = await User.find(filter)
-      .select('name email mobileNumber isActive isEmailVerified createdAt workingRole designation skills profile.bio')
+      .select('name email mobileNumber isActive isEmailVerified createdAt workingRole designation skills profile.bio profilePicture authProviders')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)

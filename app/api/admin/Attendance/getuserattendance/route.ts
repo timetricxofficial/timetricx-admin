@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
     const total = await User.countDocuments(userFilter)
 
     const users = await User.find(userFilter)
-      .select('name email isEmailVerified')
+      .select('name email isEmailVerified profilePicture')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
@@ -50,6 +50,7 @@ export async function GET(req: NextRequest) {
         _id: attendance?._id || user._id,
         userEmail: user.email,
         userName: user.name,
+        profilePicture: user.profilePicture,
         isEmailVerified: user.isEmailVerified ?? false,
         months: attendance?.months || [],
       }

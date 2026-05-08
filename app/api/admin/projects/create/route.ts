@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import connectDB from '../../../../../lib/database'
 import { Project } from '../../../../../models/Project'
+import { User } from '../../../../../models/User'
 
 export async function POST(req: NextRequest) {
   try {
@@ -15,11 +16,36 @@ export async function POST(req: NextRequest) {
       priority,
       deadline,
       teamEmails,
+      assignedUserEmail,
       tasks,
       descriptionDriveLink
     } = body
 
-    if (!name || !teamEmails?.length) {
+    let finalTeamEmails = [...(teamEmails || [])]
+
+    // If assignedUserEmail is provided, find the user and add their primary email
+    if (assignedUserEmail) {
+      const matchedUser = await User.findOne({
+        $or: [
+          { email: assignedUserEmail },
+          { 'authProviders.google.email': assignedUserEmail }
+        ]
+      })
+
+      if (!matchedUser) {
+        return NextResponse.json(
+          { success: false, message: 'No user found with the provided email' },
+          { status: 404 }
+        )
+      }
+
+      // Add the user's primary email to the team if not already present
+      if (!finalTeamEmails.includes(matchedUser.email)) {
+        finalTeamEmails.push(matchedUser.email)
+      }
+    }
+
+    if (!name || !finalTeamEmails.length) {
       return NextResponse.json(
         { success: false, message: 'Project name and team members are required' },
         { status: 400 }
@@ -35,7 +61,7 @@ export async function POST(req: NextRequest) {
     const alreadyAssignedEmails: string[] = []
 
     for (const existingProject of existingProjects) {
-      for (const email of teamEmails) {
+      for (const email of finalTeamEmails) {
         if (existingProject.teamEmails.includes(email)) {
           alreadyAssignedEmails.push(email)
         }
@@ -58,7 +84,7 @@ export async function POST(req: NextRequest) {
       status,
       priority,
       deadline,
-      teamEmails,
+      teamEmails: finalTeamEmails,
       descriptionDriveLink,
 
       tasks: {

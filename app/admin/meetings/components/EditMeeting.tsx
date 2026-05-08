@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useEffect } from 'react'
 import { useTheme } from '../../../../contexts/ThemeContext'
@@ -15,6 +15,7 @@ interface Meeting {
   participants: string[]
   projectId: string
   workingRole?: string
+  isPinned?: boolean
 }
 
 export default function EditMeeting({
@@ -29,41 +30,63 @@ export default function EditMeeting({
   const [show, setShow] = useState(false)
 
   const [projects, setProjects] = useState<any[]>([])
+  const [admins, setAdmins] = useState<any[]>([])
 
   const [form, setForm] = useState({
     hostEmail: '',
     projectId: '',
     projectName: '',
     workingRole: '',
+    userEmail: '',
     date: '',
     startTime: '',
     endTime: '',
     meetingLink: '',
-    status: 'scheduled' as Meeting['status']
+    status: 'scheduled' as Meeting['status'],
+    isPinned: false
   })
 
   useEffect(() => {
     setShow(true)
     fetchProjects()
+    fetchAdmins()
 
     // Pre-fill form with meeting data
     if (meeting) {
       const startDate = new Date(meeting.startTime)
       const endDate = new Date(meeting.endTime)
 
+      // If exactly one participant, pre-fill userEmail
+      const prefilledUserEmail = (meeting.participants && meeting.participants.length === 1) 
+        ? meeting.participants[0] 
+        : '';
+
       setForm({
         hostEmail: meeting.hostEmail || '',
         projectId: meeting.projectId || '',
         projectName: meeting.projectName || '',
         workingRole: meeting.workingRole || '',
+        userEmail: prefilledUserEmail,
         date: startDate.toISOString().split('T')[0],
         startTime: startDate.toTimeString().slice(0, 5),
         endTime: endDate.toTimeString().slice(0, 5),
         meetingLink: meeting.meetingLink || '',
-        status: meeting.status || 'scheduled'
+        status: meeting.status || 'scheduled',
+        isPinned: meeting.isPinned || false
       })
     }
   }, [meeting])
+
+  /* -------- FETCH ADMIN EMAILS -------- */
+  const fetchAdmins = async () => {
+    try {
+      const res = await fetch('/api/admin/meetings/adminemail')
+      const data = await res.json()
+      if (data.success) setAdmins(data.data)
+    } catch {
+      error('Failed to load admin emails')
+    }
+  }
 
   /* -------- FETCH PROJECTS -------- */
   const fetchProjects = async () => {
@@ -79,16 +102,41 @@ export default function EditMeeting({
   /* -------- UPDATE MEETING -------- */
   const updateMeeting = async () => {
     if (!form.hostEmail) return error('Enter host email')
-    if (!form.projectId && !form.workingRole) return error('Select project or working role')
-    if (!form.date || !form.startTime || !form.endTime)
-      return error('Select date & time')
+    // Any one of project, role, or user email required
+    if (!form.projectId && !form.workingRole && !form.userEmail) {
+      return error('Select at least one: Project, Working Role, or User Email')
+    }
+    // Date/Time validation only if NOT pinned
+    if (!form.isPinned) {
+      if (!form.date || !form.startTime || !form.endTime)
+        return error('Select date & time')
+    }
+    
     if (!form.meetingLink) return error('Enter meeting link')
 
     try {
+      let startDateTime, endDateTime;
+
+      if (form.isPinned) {
+        // For pinned meetings, use today's date as placeholder
+        const today = new Date().toISOString().split('T')[0];
+        startDateTime = new Date(`${today}T00:00:00`).toISOString();
+        endDateTime = new Date(`${today}T23:59:59`).toISOString();
+      } else {
+        startDateTime = new Date(`${form.date}T${form.startTime}`).toISOString();
+        endDateTime = new Date(`${form.date}T${form.endTime}`).toISOString();
+      }
+
       const res = await fetch(`/api/admin/meetings/${meeting._id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form)
+        body: JSON.stringify({
+          ...form,
+          startTime: startDateTime,
+          endTime: endDateTime,
+          // If userEmail is filled, it takes priority or can be used with others
+          participants: form.userEmail ? [form.userEmail.toLowerCase()] : []
+        })
       })
 
       const data = await res.json()
@@ -117,31 +165,46 @@ export default function EditMeeting({
           <h2 style={titleStyle(theme)}>
             Edit Meeting
           </h2>
-          <button onClick={onClose}>✖</button>
+          <button 
+            onClick={onClose}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              fontSize: 20,
+              cursor: 'pointer',
+              color: theme === 'dark' ? '#fff' : '#111'
+            }}
+          >
+            ✖
+          </button>
         </div>
 
         <div style={{ marginTop: 25 }}>
 
           <Box theme={theme} title="Meeting Details">
 
-            {/* HOST EMAIL */}
-            <Input
+            {/* HOST EMAIL SELECT */}
+            <Select
               label="Host Email"
-              type="email"
               value={form.hostEmail}
+              placeholder="Select Host"
               onChange={(v: string) =>
                 setForm({ ...form, hostEmail: v })
               }
+              options={admins.map(a => ({
+                label: `${a.name} (${a.email})`,
+                value: a.email
+              }))}
               theme={theme}
             />
 
-            {/* PROJECT & ROLE - Only show one based on selection */}
-            {!form.workingRole && (
+            {/* PROJECT & ROLE & USER EMAIL - Only show one based on selection */}
+            {!form.workingRole && !form.userEmail && (
               <Select
                 label="Select Project"
                 value={form.projectId}
                 onChange={(v: string) =>
-                  setForm({ ...form, projectId: v, workingRole: '' })
+                  setForm({ ...form, projectId: v, workingRole: '', userEmail: '' })
                 }
                 options={projects.map(p => ({
                   label: p.name,
@@ -151,12 +214,12 @@ export default function EditMeeting({
               />
             )}
             
-            {!form.projectId && (
+            {!form.projectId && !form.userEmail && (
               <Select
                 label="Select Working Role"
                 value={form.workingRole}
                 onChange={(v: string) =>
-                  setForm({ ...form, workingRole: v, projectId: '' })
+                  setForm({ ...form, workingRole: v, projectId: '', userEmail: '' })
                 }
                 options={[
                   { label: 'Frontend Developer', value: 'Frontend Developer' },
@@ -164,10 +227,28 @@ export default function EditMeeting({
                   { label: 'Full Stack Developer', value: 'Full Stack Developer' },
                   { label: 'UI/UX Designer', value: 'UI/UX Designer' },
                   { label: 'Project Manager', value: 'Project Manager' },
-                  { label: 'QA Engineer', value: 'QA Engineer' }
+                  { label: 'QA Engineer', value: 'QA Engineer' },
+                  { label: 'DevOps Engineer', value: 'DevOps Engineer' },
+                  { label: 'Mobile Developer', value: 'Mobile Developer' },
+                  { label: 'Business Analyst', value: 'Business Analyst' },
+                  { label: 'Developer', value: 'Developer' },
                 ]}
                 theme={theme}
               />
+            )}
+
+            {!form.projectId && !form.workingRole && (
+              <div style={{ marginBottom: 12 }}>
+                <Input
+                  label="User Email (Optional)"
+                  placeholder="user@example.com"
+                  value={form.userEmail}
+                  onChange={(v: string) =>
+                    setForm({ ...form, userEmail: v, projectId: '', workingRole: '' })
+                  }
+                  theme={theme}
+                />
+              </div>
             )}
 
             {/* MEETING LINK */}
@@ -180,6 +261,32 @@ export default function EditMeeting({
               }
               theme={theme}
             />
+
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '10px', 
+              marginBottom: '15px',
+              padding: '10px',
+              borderRadius: '10px',
+              background: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
+              border: '1px solid rgba(59,130,246,0.2)'
+            }}>
+              <label style={{ 
+                fontSize: '13px', 
+                fontWeight: 600, 
+                color: theme === 'dark' ? '#fff' : '#111',
+                flex: 1
+              }}>
+                📌 Pin this meeting (Permanent Room)
+              </label>
+              <input 
+                type="checkbox" 
+                checked={form.isPinned}
+                onChange={(e) => setForm({ ...form, isPinned: e.target.checked })}
+                style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+              />
+            </div>
 
             {/* STATUS SELECT */}
             <Select
@@ -197,37 +304,43 @@ export default function EditMeeting({
               theme={theme}
             />
 
-            <Row>
-              <Input
-                type="date"
-                label="Date"
-                value={form.date}
-                onChange={(v: string) =>
-                  setForm({ ...form, date: v })
-                }
-                theme={theme}
-              />
+            {!form.isPinned && (
+              <>
+                <Row>
+                  <Input
+                    type="date"
+                    label="Date"
+                    value={form.date}
+                    onChange={(v: string) =>
+                      setForm({ ...form, date: v })
+                    }
+                    theme={theme}
+                  />
+                </Row>
 
-              <Input
-                type="time"
-                label="Start Time"
-                value={form.startTime}
-                onChange={(v: string) =>
-                  setForm({ ...form, startTime: v })
-                }
-                theme={theme}
-              />
-            </Row>
+                <Row>
+                  <Input
+                    type="time"
+                    label="Start Time"
+                    value={form.startTime}
+                    onChange={(v: string) =>
+                      setForm({ ...form, startTime: v })
+                    }
+                    theme={theme}
+                  />
 
-            <Input
-              type="time"
-              label="End Time"
-              value={form.endTime}
-              onChange={(v: string) =>
-                setForm({ ...form, endTime: v })
-              }
-              theme={theme}
-            />
+                  <Input
+                    type="time"
+                    label="End Time"
+                    value={form.endTime}
+                    onChange={(v: string) =>
+                      setForm({ ...form, endTime: v })
+                    }
+                    theme={theme}
+                  />
+                </Row>
+              </>
+            )}
 
           </Box>
 
@@ -319,7 +432,7 @@ function Btn({ children, onClick, primary, theme }: any) {
   )
 }
 
-function Select({ label, value, onChange, options, theme }: any) {
+function Select({ label, value, onChange, options, theme, placeholder = 'Select...' }: any) {
   return (
     <div style={{ marginBottom: 12 }}>
       <label style={{
@@ -341,14 +454,29 @@ function Select({ label, value, onChange, options, theme }: any) {
             ? '1px solid rgba(255,255,255,0.1)'
             : '1px solid rgba(0,0,0,0.15)',
           background: theme === 'dark'
-            ? 'rgba(255,255,255,0.05)'
-            : 'rgba(255,255,255,0.8)',
+            ? '#1f2937'
+            : '#ffffff',
           color: theme === 'dark' ? '#fff' : '#111'
         }}
       >
-        <option value="">Select...</option>
+        <option 
+          value=""
+          style={{
+            background: theme === 'dark' ? '#1f2937' : '#ffffff',
+            color: theme === 'dark' ? '#fff' : '#111'
+          }}
+        >
+          {placeholder}
+        </option>
         {options.map((o: any) => (
-          <option key={o.value || o} value={o.value || o}>
+          <option 
+            key={o.value || o} 
+            value={o.value || o}
+            style={{
+              background: theme === 'dark' ? '#1f2937' : '#ffffff',
+              color: theme === 'dark' ? '#fff' : '#111'
+            }}
+          >
             {o.label || o}
           </option>
         ))}

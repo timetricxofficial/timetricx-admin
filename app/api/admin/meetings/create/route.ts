@@ -17,15 +17,15 @@ export async function POST(req: NextRequest) {
       userEmail,
       startTime,
       endTime,
-      meetingLink
+      meetingLink,
+      isPinned
     } = body
 
     /* ---------- VALIDATION ---------- */
     if (
       !hostEmail ||
       (!projectName && !workingRole && !userEmail) ||
-      !startTime ||
-      !endTime ||
+      (!isPinned && (!startTime || !endTime)) ||
       !meetingLink
     ) {
       return NextResponse.json(
@@ -93,33 +93,50 @@ export async function POST(req: NextRequest) {
     }
 
     /* ---------- CHECK DUPLICATE MEETING ---------- */
-    // Check if meeting already exists at same time for same project/role
-    const startDate = new Date(startTime)
-    const endDate = new Date(endTime)
+    if (isPinned) {
+      // For pinned meetings: check if same host, user, and link already exist
+      const existingPinned = await Meeting.findOne({
+        isPinned: true,
+        hostEmail: hostEmail.toLowerCase(),
+        meetingLink: meetingLink,
+        participants: { $all: participantGoogleEmails }
+      })
 
-    const duplicateQuery: any = {
-      startTime: { $lte: endDate },
-      endTime: { $gte: startDate },
-      status: { $ne: 'cancelled' }
-    }
+      if (existingPinned) {
+        return NextResponse.json(
+          { success: false, message: "A pinned meeting with this host, link, and participant already exists" },
+          { status: 409 }
+        )
+      }
+    } else {
+      // For normal meetings: check time clash
+      const startDate = new Date(startTime)
+      const endDate = new Date(endTime)
 
-    // Add project or role filter
-    if (projectName) {
-      duplicateQuery.projectName = projectName
-    } else if (workingRole) {
-      duplicateQuery.workingRole = workingRole
-    }
+      const duplicateQuery: any = {
+        startTime: { $lte: endDate },
+        endTime: { $gte: startDate },
+        status: { $ne: 'cancelled' },
+        isPinned: false
+      }
 
-    const existingMeeting = await Meeting.findOne(duplicateQuery)
+      if (projectName) {
+        duplicateQuery.projectName = projectName
+      } else if (workingRole) {
+        duplicateQuery.workingRole = workingRole
+      }
 
-    if (existingMeeting) {
-      return NextResponse.json(
-        { 
-          success: false, 
-          message: `Meeting already scheduled at this time for ${projectName || workingRole}` 
-        },
-        { status: 409 }
-      )
+      const existingMeeting = await Meeting.findOne(duplicateQuery)
+
+      if (existingMeeting) {
+        return NextResponse.json(
+          { 
+            success: false, 
+            message: `Meeting already scheduled at this time for ${projectName || workingRole}` 
+          },
+          { status: 409 }
+        )
+      }
     }
 
     /* ---------- SAVE MEETING ---------- */
@@ -133,6 +150,7 @@ export async function POST(req: NextRequest) {
       meetingLink,
       startTime: new Date(startTime),
       endTime: new Date(endTime),
+      isPinned: isPinned || false,
       status: "scheduled"
     })
 

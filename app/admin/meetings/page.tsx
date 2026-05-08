@@ -1,13 +1,24 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Search, Plus, Edit, Trash2, Video } from 'lucide-react'
+import { 
+  Search, 
+  Pin, 
+  Edit2, 
+  Trash2, 
+  Video, 
+  Users, 
+  RefreshCcw,
+  Plus,
+  Edit
+} from 'lucide-react'
 import { useTheme } from '../../../contexts/ThemeContext'
 import { useToast } from '../../../contexts/ToastContext'
 import Swal from 'sweetalert2'
 import AddMeeting from './components/AddMeeting'
 import EditMeeting from './components/EditMeeting'
 import MeetingTimer from './components/MeetingTimer'
+import ViewTeamModal from '../projects/components/ViewTeamModal'
 
 interface Meeting {
   _id: string
@@ -19,6 +30,7 @@ interface Meeting {
   meetingLink: string
   participants: string[]
   projectId: string
+  isPinned?: boolean
   createdAt: string
   updatedAt: string
 }
@@ -36,6 +48,7 @@ export default function AdminMeetingsPage() {
   const [search, setSearch] = useState('')
   const [openAdd, setOpenAdd] = useState(false)
   const [openEdit, setOpenEdit] = useState(false)
+  const [openViewTeam, setOpenViewTeam] = useState(false)
   const [selectedMeeting, setSelectedMeeting] = useState<Meeting | null>(null)
   const [loading, setLoading] = useState(true)
   const [currentAdmin, setCurrentAdmin] = useState<CurrentAdmin | null>(null)
@@ -90,7 +103,12 @@ export default function AdminMeetingsPage() {
   const filtered = meetings.filter(m =>
     m.projectName?.toLowerCase().includes(search.toLowerCase()) ||
     m.hostEmail?.toLowerCase().includes(search.toLowerCase())
-  )
+  ).sort((a, b) => {
+    // Show pinned first
+    if (a.isPinned && !b.isPinned) return -1
+    if (!a.isPinned && b.isPinned) return 1
+    return 0
+  })
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -199,7 +217,6 @@ export default function AdminMeetingsPage() {
         <table className="w-full">
           <thead className={theme === 'dark' ? 'bg-[#1a1a1a]' : 'bg-gray-50'}>
             <tr>
-              <th className="p-3 text-left">Project</th>
               <th className="p-3 text-left">Host</th>
               <th className="p-3 text-left">Date</th>
               <th className="p-3 text-left">Time</th>
@@ -219,27 +236,53 @@ export default function AdminMeetingsPage() {
                     : 'border-gray-200 hover:bg-gray-50'
                   }`}
               >
-                <td className="px-6 py-4 font-medium">
-                  {meeting.projectName}
+                <td className="p-3 text-sm">
+                  <div className="flex flex-col">
+                    <div className="flex items-center gap-2">
+                      {meeting.hostEmail}
+                      {meeting.isPinned && (
+                        <span 
+                          title="Pinned Meeting" 
+                          className="bg-indigo-100 text-indigo-600 p-1 rounded-md flex items-center justify-center shadow-sm"
+                        >
+                          <Pin size={12} fill="currentColor" />
+                        </span>
+                      )}
+                    </div>
+                    {meeting.isPinned && meeting.participants && meeting.participants.length > 0 && (
+                      <span className="text-[10px] text-gray-500 italic mt-0.5">
+                        For: {meeting.participants.join(', ')}
+                      </span>
+                    )}
+                  </div>
                 </td>
 
                 <td className="p-3 text-sm">
-                  {meeting.hostEmail}
+                  {meeting.isPinned ? (
+                    <div className="flex flex-col">
+                      <span className="text-indigo-500 font-bold flex items-center gap-1.5">
+                        <Pin size={14} fill="currentColor" /> Permanent Room
+                      </span>
+                      <span className="text-xs text-gray-400 italic">Always available for join</span>
+                    </div>
+                  ) : (
+                    new Date(meeting.startTime).toLocaleString()
+                  )}
                 </td>
 
                 <td className="p-3 text-sm">
-                  {new Date(meeting.startTime).toLocaleString()}
-                </td>
-
-                <td className="p-3 text-sm">
-                  <MeetingTimer
-                    meetingId={meeting._id}
-                    startTime={meeting.startTime}
-                    endTime={meeting.endTime}
-                    status={meeting.status}
-                    onDelete={autoDeleteMeeting}
-                    theme={theme}
-                  />
+                  {meeting.isPinned ? (
+                    <span className="text-gray-400 italic">No timer</span>
+                  ) : (
+                    <MeetingTimer
+                      meetingId={meeting._id}
+                      startTime={meeting.startTime}
+                      endTime={meeting.endTime}
+                      status={meeting.status}
+                      onDelete={autoDeleteMeeting}
+                      theme={theme}
+                    />
+                  )}
                 </td>
 
                 <td className="p-3">
@@ -250,14 +293,16 @@ export default function AdminMeetingsPage() {
                   </span>
                 </td>
 
-                {/* JOIN BUTTON */}
                 <td className="p-3 text-center">
                   {meeting.status !== 'cancelled' && meeting.meetingLink ? (
                     <button
                       onClick={() => handleJoin(meeting.meetingLink)}
-                      className="flex items-center gap-1 mx-auto px-3 py-1 bg-green-600 hover:bg-green-500 text-white text-xs rounded-lg transition"
+                      className={`flex items-center gap-1 mx-auto px-4 py-1.5 rounded-lg transition font-medium
+                        ${meeting.isPinned 
+                          ? 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-500/30' 
+                          : 'bg-green-600 hover:bg-green-500 text-white'}`}
                     >
-                      <Video size={14} /> Join
+                      <Video size={14} /> {meeting.isPinned ? 'Join Room' : 'Join'}
                     </button>
                   ) : (
                     <span className="text-gray-400 text-xs">—</span>
@@ -266,6 +311,17 @@ export default function AdminMeetingsPage() {
 
                 {/* ACTIONS */}
                 <td className="p-3 flex justify-center gap-3">
+                  <button
+                    onClick={() => {
+                      setSelectedMeeting(meeting)
+                      setOpenViewTeam(true)
+                    }}
+                    className="text-indigo-500 hover:scale-110 cursor-pointer transition-transform"
+                    title="View Participants"
+                  >
+                    <Users size={18} />
+                  </button>
+
                   <button
                     onClick={() => {
                       if (canEdit()) {
@@ -332,6 +388,20 @@ export default function AdminMeetingsPage() {
             setSelectedMeeting(null)
             getMeetings()
           }}
+        />
+      )}
+
+      {/* VIEW TEAM MODAL */}
+      {openViewTeam && selectedMeeting && (
+        <ViewTeamModal
+          isOpen={openViewTeam}
+          onClose={() => {
+            setOpenViewTeam(false)
+            setSelectedMeeting(null)
+          }}
+          teamEmails={selectedMeeting.participants || []}
+          projectName={selectedMeeting.projectName || 'Meeting Participants'}
+          theme={theme}
         />
       )}
     </div>

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { Search, Eye, Edit, Ban, Trash2, CheckCircle, Filter, FileText } from 'lucide-react'
+import { Search, Eye, Edit, Ban, Trash2, CheckCircle, Filter, FileText, Briefcase } from 'lucide-react'
 import { useTheme } from '../../../../contexts/ThemeContext'
 import { useToast } from '../../../../contexts/ToastContext'
 import EditUser from './components/edit'
@@ -286,7 +286,9 @@ export default function User({ onEdit, onView }: UserProps) {
     if (isGraphics && !isDeveloper) return 'Graphics'
     if (workingRoleRaw.toLowerCase().includes('developer') || designationRaw.toLowerCase().includes('developer')) return 'Developer'
     if (workingRoleRaw.toLowerCase().includes('graphic') || designationRaw.toLowerCase().includes('graphic')) return 'Graphics'
-    return ''
+    
+    // Return workingRole or designation if no specific role is detected
+    return (workingRoleRaw || designationRaw || '') as any
   }
 
   function getDeveloperType(user: any): 'frontend' | 'backend' | 'fullstack' | 'other' {
@@ -516,8 +518,10 @@ export default function User({ onEdit, onView }: UserProps) {
                         <span className="inline-flex items-center">
                           {role === 'Developer' ? (
                             <DeveloperIcon className={iconClass} />
-                          ) : (
+                          ) : role === 'Graphics' ? (
                             <GraphicsIcon className={iconClass} />
+                          ) : (
+                            <Briefcase size={14} className={iconClass} />
                           )}
                         </span>
                         <span>{role}</span>

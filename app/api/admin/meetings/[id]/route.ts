@@ -20,37 +20,48 @@ export async function PUT(
       projectId, 
       projectName, 
       workingRole,
+      userEmail,
       date, 
       startTime, 
       endTime, 
       meetingLink, 
-      status 
+      status,
+      participants,
+      isPinned
     } = body
 
-    if (!hostEmail || !date || !startTime || !endTime || !meetingLink) {
+    if (!hostEmail || (!isPinned && (!date || !startTime || !endTime)) || !meetingLink) {
       return NextResponse.json(
         { success: false, message: "Missing required fields" },
         { status: 400 }
       )
     }
 
-    if (!projectId && !workingRole) {
+    if (!projectId && !workingRole && !userEmail) {
       return NextResponse.json(
-        { success: false, message: "Select project or working role" },
+        { success: false, message: "Select at least one: Project, Role, or User Email" },
         { status: 400 }
       )
     }
 
     // Combine date and time
-    const startDateTime = new Date(`${date}T${startTime}`)
-    const endDateTime = new Date(`${date}T${endTime}`)
+    let startDateTime, endDateTime;
+    if (isPinned) {
+      const today = new Date().toISOString().split('T')[0];
+      startDateTime = new Date(`${today}T00:00:00`)
+      endDateTime = new Date(`${today}T23:59:59`)
+    } else {
+      startDateTime = new Date(`${date}T${startTime}`)
+      endDateTime = new Date(`${date}T${endTime}`)
+    }
 
     const updateData: any = {
       hostEmail,
       startTime: startDateTime,
       endTime: endDateTime,
       meetingLink,
-      status: status || 'scheduled'
+      status: status || 'scheduled',
+      isPinned: isPinned || false
     }
 
     if (projectId) {
@@ -61,6 +72,11 @@ export async function PUT(
       updateData.workingRole = workingRole
       updateData.projectId = null
       updateData.projectName = null
+    } else if (userEmail) {
+      updateData.workingRole = null
+      updateData.projectId = null
+      updateData.projectName = null
+      updateData.participants = participants || [userEmail.toLowerCase()]
     }
 
     const updated = await Meeting.findByIdAndUpdate(

@@ -13,15 +13,7 @@ export async function GET(req: NextRequest) {
 
     const total = await Project.countDocuments()
 
-    const projects = await Project.find(
-      {},
-      {
-        name: 1,
-        status: 1,
-        progress: 1,
-        isDisabled: 1
-      }
-    )
+    const projects = await Project.find({})
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)

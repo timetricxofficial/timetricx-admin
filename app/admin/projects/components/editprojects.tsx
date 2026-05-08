@@ -35,6 +35,10 @@ export default function EditProjects({
   const [roleQuery, setRoleQuery] = useState('')
   const [roleUsers, setRoleUsers] = useState<any[]>([])
 
+  /* ---------- EMAIL SEARCH ---------- */
+  const [emailQuery, setEmailQuery] = useState('')
+  const [emailUsers, setEmailUsers] = useState<any[]>([])
+
   const workingRoles = [
     'Frontend Developer',
     'Backend Developer',
@@ -97,6 +101,24 @@ export default function EditProjects({
     setRoleUsers(data.data || [])
   }
 
+  /* ---------- EMAIL SEARCH API ---------- */
+  const searchByEmail = async (value: string) => {
+    setEmailQuery(value)
+
+    if (value.length < 3) {
+      setEmailUsers([])
+      return
+    }
+
+    try {
+      const res = await fetch(`/api/admin/users/get-all-users?search=${value}&limit=5`)
+      const data = await res.json()
+      setEmailUsers(data.data || [])
+    } catch (err) {
+      console.error('Failed to search by email', err)
+    }
+  }
+
   /* ---------- UPDATE PROJECT ---------- */
   const updateProject = async () => {
     // Validation
@@ -128,7 +150,8 @@ export default function EditProjects({
           descriptionDriveLink: form.descriptionDriveLink,
           teamEmails: form.teamEmails,
           tasks: {
-            total: Number(form.totalTasks)
+            total: Number(form.totalTasks),
+            completed: project.tasks?.completed || 0
           }
         })
       })
@@ -258,8 +281,8 @@ export default function EditProjects({
           {/* TEAM MEMBERS */}
           <Box theme={theme} title="Team Members" mt>
             
-            {/* Search Row - 2 Columns */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+            {/* Search Row - 3 Columns */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
               {/* Search by Skill */}
               <div>
                 <Input
@@ -347,7 +370,7 @@ export default function EditProjects({
                 <Select
                   label="Search by Working Role"
                   value={roleQuery}
-                  options={['', ...workingRoles]}
+                  options={['Select Working Role', ...workingRoles]}
                   onChange={searchByRole}
                   theme={theme}
                 />
@@ -422,6 +445,51 @@ export default function EditProjects({
                           : 'Deselect All'}
                       </button>
                     )}
+                  </div>
+                )}
+              </div>
+
+              {/* Search by Email */}
+              <div>
+                <Input
+                  label="Search by Email"
+                  value={emailQuery}
+                  onChange={searchByEmail}
+                  theme={theme}
+                  placeholder="Type email..."
+                />
+                
+                {/* Email Users Results */}
+                {emailUsers.length > 0 && (
+                  <div style={{ marginTop: 8 }}>
+                    <p style={{ fontSize: 11, color: theme === 'dark' ? '#888' : '#666', marginBottom: 4 }}>Email Results</p>
+                    {emailUsers.filter(u => !form.teamEmails.includes(u.email)).map(u => (
+                      <div
+                        key={`email-search-${u.email}`}
+                        onClick={() => {
+                          if (!form.teamEmails.includes(u.email)) {
+                            setForm({
+                              ...form,
+                              teamEmails: [...form.teamEmails, u.email]
+                            })
+                          }
+                        }}
+                        style={{
+                          padding: 8,
+                          marginTop: 4,
+                          borderRadius: 6,
+                          cursor: 'pointer',
+                          background: theme === 'dark'
+                            ? 'rgba(139,92,246,0.15)'
+                            : 'rgba(139,92,246,0.1)',
+                          borderLeft: '2px solid #8b5cf6',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        <b style={{ fontSize: 12 }}>{u.name}</b>
+                        <div style={{ fontSize: 10, color: theme === 'dark' ? '#aaa' : '#666' }}>{u.email}</div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
