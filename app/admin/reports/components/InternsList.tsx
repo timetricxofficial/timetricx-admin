@@ -9,10 +9,27 @@ import Swal from 'sweetalert2'
 
 export default function InternsList({ onViewDetail }: { onViewDetail: (user: any) => void }) {
   const { theme } = useTheme()
-  const { checkPresence, connected } = useSocket()
+  const { checkPresence, connected, lastPresenceResult, connectionError, retryCount } = useSocket()
   const [users, setUsers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
+
+  const getStatusBadge = (status: string | undefined) => {
+    if (!status) return { label: 'Pending', styles: 'bg-slate-100 text-slate-700' }
+
+    switch (status) {
+      case 'verified':
+        return { label: 'Verified', styles: 'bg-emerald-100 text-emerald-800' }
+      case 'partial_match':
+        return { label: 'Partial Match', styles: 'bg-amber-100 text-amber-800' }
+      case 'present_but_failed':
+        return { label: 'Face Mismatch', styles: 'bg-orange-100 text-orange-800' }
+      case 'not_present':
+        return { label: 'Not Present', styles: 'bg-red-100 text-red-800' }
+      default:
+        return { label: 'Verification Result', styles: 'bg-slate-100 text-slate-700' }
+    }
+  }
 
   useEffect(() => {
     fetchUsers()
@@ -75,6 +92,56 @@ export default function InternsList({ onViewDetail }: { onViewDetail: (user: any
           }
         }
       `}</style>
+
+      {/* CONNECTION STATUS */}
+      <div className={`rounded-2xl border p-4 flex items-center justify-between ${
+        connected 
+          ? theme === 'dark' ? 'bg-emerald-950 border-emerald-800' : 'bg-emerald-50 border-emerald-200'
+          : theme === 'dark' ? 'bg-red-950 border-red-800' : 'bg-red-50 border-red-200'
+      }`}>
+        <div className="flex-1">
+          <div className="flex items-center gap-3">
+            <div className={`w-3 h-3 rounded-full ${connected ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`}></div>
+            <div>
+              <span className={`text-sm font-medium ${connected ? 'text-emerald-700 dark:text-emerald-300' : 'text-red-700 dark:text-red-300'}`}>
+                {connected ? '✅ Socket Connected' : '❌ Socket Disconnected - Presence checks disabled'}
+              </span>
+              {!connected && connectionError && (
+                <div className={`text-xs mt-1 ${theme === 'dark' ? 'text-red-400' : 'text-red-600'}`}>
+                  {connectionError} {retryCount > 0 && `(Retry: ${retryCount})`}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+        {!connected && (
+          <button
+            onClick={() => window.location.reload()}
+            className="text-xs px-3 py-1 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors"
+          >
+            Refresh
+          </button>
+        )}
+      </div>
+
+      {lastPresenceResult && (
+        <div className={`rounded-3xl border p-4 ${theme === 'dark' ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'}`}>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="text-sm opacity-70">Latest verification result</div>
+              <div className="mt-2 font-semibold text-base">
+                {lastPresenceResult.userName || 'User'} - {getStatusBadge(lastPresenceResult.status).label}
+              </div>
+              <div className="mt-1 text-sm opacity-70">
+                {lastPresenceResult.message || `Match: ${Math.round((lastPresenceResult.score || 0) * 100)}%`}
+              </div>
+            </div>
+            <span className={`rounded-full px-3 py-1 text-xs font-semibold ${getStatusBadge(lastPresenceResult.status).styles}`}>
+              {getStatusBadge(lastPresenceResult.status).label}
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* SEARCH */}
       <div className="relative max-w-md">
@@ -181,6 +248,11 @@ Z
 
             {/* 🔥 CONTENT */}
             <div className="relative z-10 ">
+              {lastPresenceResult && (lastPresenceResult.userId === user._id || lastPresenceResult.userId === user.id) && (
+                <div className={`mb-4 inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${getStatusBadge(lastPresenceResult.status).styles}`}>
+                  {getStatusBadge(lastPresenceResult.status).label}
+                </div>
+              )}
 
               {/* TOP */}
               <div className="flex items-start justify-between mb-4">
@@ -194,7 +266,7 @@ Z
                     <div className="absolute -inset-2 bg-indigo-500/20 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                     
                     <div className="absolute inset-0 rounded-xl border-2 border-indigo-500/20 shadow-[0_0_10px_rgba(79,70,229,0.2)]"></div>
-                    <div className="absolute inset-0.5 rounded-xl bg-indigo-500/10 flex items-center justify-center overflow-hidden shadow relative z-10">
+                    <div className="absolute inset-0.5 rounded-xl bg-indigo-500/10 flex items-center justify-center overflow-hidden shadow z-10">
                       {user.profilePicture ? (
                         <img src={user.profilePicture} alt={user.name} className="w-full h-full object-cover" />
                       ) : (
@@ -212,10 +284,18 @@ Z
                 <div className="flex gap-2 p-5">
                   <button 
                     onClick={() => user.isCheckedIn && handleCheckPresence(user)}
-                    disabled={!user.isCheckedIn}
-                    className={!user.isCheckedIn ? 'opacity-30 cursor-not-allowed' : ''}
+                    disabled={!user.isCheckedIn || !connected}
+                    title={
+                      !connected ? '❌ Socket not connected - Refresh page'
+                      : !user.isCheckedIn ? '❌ User not checked in'
+                      : '📹 Click to trigger face verification'
+                    }
+                    className={`transition-opacity ${!user.isCheckedIn || !connected ? 'opacity-40 cursor-not-allowed' : 'hover:opacity-80'}`}
                   >
-                    <Video size={20} className={user.isCheckedIn ? 'text-green-500' : 'text-gray-400'} />
+                    <Video size={20} className={
+                      !connected ? 'text-gray-400'
+                      : user.isCheckedIn ? 'text-green-500' : 'text-gray-400'
+                    } />
                   </button>
                   <button onClick={() => onViewDetail(user)}>
                     <Eye size={20} className="text-indigo-500" />

@@ -1,12 +1,13 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { io, Socket } from 'socket.io-client'
+import { Socket } from 'socket.io-client'
 import Swal from 'sweetalert2'
 import Cookies from 'js-cookie'
+import { createSocketClient } from '@/lib/socket'
 
 // Window-based socket storage (survives HMR)
-const getGlobalSocket = (): Socket | null => {
+const getGlobalSocket = (): any => {
   if (typeof window === 'undefined') return null
   return (window as any).__adminSocket || null
 }
@@ -20,6 +21,9 @@ const setGlobalSocket = (socket: Socket | null) => {
 export const useSocket = () => {
   const [connected, setConnected] = useState(false)
   const [adminData, setAdminData] = useState<any>(null)
+  const [lastPresenceResult, setLastPresenceResult] = useState<any>(null)
+  const [connectionError, setConnectionError] = useState<string | null>(null)
+  const [retryCount, setRetryCount] = useState(0)
 
   useEffect(() => {
     // Prevent double initialization in Strict Mode
@@ -53,99 +57,102 @@ export const useSocket = () => {
     // Initialize socket
     const init = async () => {
       try {
-        await fetch('/api/socket')
-        
-        // Check again after fetch
         if (getGlobalSocket()) return
 
-        // Use env variable for socket server URL, fallback to current origin
-        const socketServerUrl = process.env.NEXT_PUBLIC_SOCKET_SERVER_URL || window.location.origin
+        const socket = createSocketClient()
         
-        socket = io(socketServerUrl, {
-          path: '/api/socket',
-          transports: ['websocket', 'polling'],
-          reconnection: true,
-          reconnectionAttempts: Infinity,
-          reconnectionDelay: 2000,
-        })
+        // Store immediately
+        setGlobalSocket(socket)
 
         socket.on('connect', () => {
-          console.log('Admin Socket Connected:', socket?.id)
+          console.log('✅ Admin Socket Connected:', socket?.id)
           setConnected(true)
+          setConnectionError(null)
+          setRetryCount(0)
           
           // Join room
           const adminId = parsedAdmin?.id || parsedAdmin?._id
           if (adminId) {
-            console.log('Admin joining room:', adminId)
-            socket?.emit('join_room', adminId)
+            console.log('👤 Admin joining room:', adminId)
+            socket?.emit('join_room', { adminId, role: 'admin' })
           } else {
-            console.error('No adminId found to join room')
+            console.error('❌ No adminId found to join room')
           }
         })
 
-        socket.on('disconnect', () => {
-          console.log('Admin Socket Disconnected')
+        socket.on('disconnect', (reason) => {
+          console.log('❌ Admin Socket Disconnected:', reason)
+          console.log('   - Socket State:', {
+            connected: socket?.connected,
+            disconnected: socket?.disconnected,
+            id: socket?.id
+          })
           setConnected(false)
+          setConnectionError(`Disconnected: ${reason}`)
+        })
+
+        socket.on('connect_error', (err: any) => {
+          const errMsg = err?.message || String(err)
+          console.error('❌ Socket connect_error:', errMsg)
+          console.error('   - Full Error:', err)
+          console.error('   - Socket State:', {
+            connected: socket?.connected,
+            disconnected: socket?.disconnected
+          })
+          setConnectionError(errMsg)
+          setRetryCount(prev => prev + 1)
+        })
+
+        socket.on('error', (err: any) => {
+          const errMsg = err?.message || String(err)
+          console.error('❌ Socket error event:', errMsg)
+          console.error('   - Full Error:', err)
+          setConnectionError(errMsg)
         })
 
         socket.on('user_presence_result', (data) => {
-          console.log('user_presence_result received:', data)
-          const { status, score, userName, userId } = data
-          
-          if (status === 'verified') {
-            // ✅ Green success - Human present + Face verified
-            Swal.fire({
-              title: '✅ User Verified',
-              html: `<b>${userName || 'User'}</b> is present and verified<br>Match: <b>${Math.round((score || 0) * 100)}%</b>`,
-              icon: 'success',
-              confirmButtonColor: '#22c55e',
-              timer: 5000,
-              showConfirmButton: true
-            })
-          } else if (status === 'partial_match') {
-            // ⚠️ Yellow warning - Human present but face partially matched
-            Swal.fire({
-              title: '⚠️ Partial Match',
-              html: `<b>${userName || 'User'}</b> is in front of camera with partial match<br>Match: <b>${Math.round((score || 0) * 100)}%</b>`,
-              icon: 'warning',
-              confirmButtonColor: '#f59e0b',
-              timer: 5000,
-              showConfirmButton: true
-            })
-          } else if (status === 'present_but_failed') {
-            // ⚠️ Yellow warning - Human present but face didn't match
-            Swal.fire({
-              title: '⚠️ Verification Failed',
-              html: `<b>${userName || 'User'}</b> is in front of camera but face did <b>NOT</b> match<br>Match: <b>${Math.round((score || 0) * 100)}%</b>`,
-              icon: 'warning',
-              confirmButtonColor: '#f59e0b',
-              timer: 5000,
-              showConfirmButton: true
-            })
-          } else if (status === 'not_present') {
-            // ❌ Red error - No one in front of camera
-            Swal.fire({
-              title: '❌ User Not Present',
-              html: `<b>${userName || 'User'}</b> is <b>NOT</b> in front of camera<br>No face detected.`,
-              icon: 'error',
-              confirmButtonColor: '#ef4444',
-              timer: 5000,
-              showConfirmButton: true
-            })
-          } else {
-            // Fallback for any other status
-            Swal.fire({
-              title: 'Verification Result',
-              text: `${userName || 'User'}: ${status}`,
-              icon: 'info',
-              confirmButtonColor: '#4f46e5'
-            })
-          }
+          console.log('📨 user_presence_result received:', data)
+          setLastPresenceResult(data)
+
+          const { status, score, userName, message } = data
+          const headline = status === 'verified'
+            ? '✅ User Verified'
+            : status === 'partial_match'
+            ? '⚠️ Partial Match'
+            : status === 'present_but_failed'
+            ? '⚠️ Verification Failed'
+            : status === 'not_present'
+            ? '❌ User Not Present'
+            : 'Verification Result'
+
+          const detail = message
+            ? `${message}`
+            : `${userName || 'User'} — Match: ${Math.round((score || 0) * 100)}%`
+
+          Swal.fire({
+            title: headline,
+            html: `<b>${userName || 'User'}</b><br>${detail}`,
+            icon: status === 'verified' ? ('success' as any)
+              : status === 'partial_match' ? ('warning' as any)
+              : status === 'present_but_failed' ? ('warning' as any)
+              : status === 'not_present' ? ('error' as any)
+              : ('info' as any),
+            confirmButtonColor: status === 'verified' ? '#22c55e' : '#ef4444',
+            timer: 5000,
+            showConfirmButton: true
+          })
+
+          window.setTimeout(() => setLastPresenceResult(null), 12000)
         })
 
-        setGlobalSocket(socket)
+        console.log('🔌 Socket client initialized, waiting for connection...')
+        console.log('   - Socket ID (before connect):', socket?.id)
+        console.log('   - Socket Connected:', socket?.connected)
       } catch (err) {
-        console.error('Socket init error:', err)
+        const errMsg = err instanceof Error ? err.message : String(err)
+        console.error('❌ Socket init error:', errMsg)
+        console.error('   - Full Stack:', err)
+        setConnectionError(errMsg)
       }
     }
 
@@ -185,8 +192,5 @@ export const useSocket = () => {
     return false
   }, [adminData])
 
-  // Get real-time connected status from global socket
-  const isConnected = getGlobalSocket()?.connected || false
-
-  return { connected: isConnected, checkPresence, adminData }
+  return { connected, checkPresence, adminData, lastPresenceResult, connectionError, retryCount }
 }
