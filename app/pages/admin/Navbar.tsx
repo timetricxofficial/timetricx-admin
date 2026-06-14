@@ -116,46 +116,275 @@ export default function Navbar() {
                 </button>
 
                 {/* Profile Dropdown */}
-                {showProfile && (
-                  <div className={`absolute right-0 mt-2 w-48 rounded-lg shadow-lg ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-                    } border z-50`}>
+{showProfile && (
+  <div className="absolute right-0 mt-3 w-72 z-50">
+    
+    {/* Glow */}
+    <div className="absolute inset-0 rounded-3xl bg-transparent"></div>
 
-                    <div className={`p-3 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
-                      <p className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
-                        {adminProfile?.name || 'Admin'}
-                      </p>
-                      <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-                        {adminProfile?.email || ''}
-                      </p>
-                    </div>
+    <div
+      className={`
+        relative overflow-hidden rounded-3xl border backdrop-blur-2xl
+        shadow-[0_10px_50px_rgba(0,0,0,0.35)]
+        transition-all duration-300
+        ${
+          theme === 'dark'
+            ? 'bg-[#0f172a]/95 border-white/10'
+            : 'bg-white/90 border-slate-200'
+        }
+      `}
+    >
+      
+      {/* TOP PROFILE SECTION */}
+      <div className="relative px-5 pt-5 pb-4">
 
-                    <div className="py-2">
-                      <button
-                        onClick={() => {
-                          setShowProfile(false);
-                          router.push('/admin/profile');
-                        }}
-                        className={`w-full flex items-center space-x-2 px-3 py-2 text-sm ${theme === 'dark' ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'
-                          } transition-colors`}
-                      >
-                        <User className="h-4 w-4" />
-                        <span>Profile</span>
-                      </button>
+        {/* Background Accent */}
+        <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 blur-3xl rounded-full"></div>
 
-                      <button
-                        onClick={() => {
-                          setShowProfile(false);
-                          setShowLogoutDialog(true);
-                        }}
-                        className={`w-full flex items-center space-x-2 px-3 py-2 text-sm ${theme === 'dark' ? 'text-red-400 hover:bg-gray-700' : 'text-red-600 hover:bg-gray-100'
-                          } transition-colors`}
-                      >
-                        <LogOut className="h-4 w-4" />
-                        <span>Logout</span>
-                      </button>
-                    </div>
-                  </div>
-                )}
+        <div className="relative flex items-start gap-4">
+
+          {/* Avatar */}
+          <div className="relative shrink-0">
+            <div
+              className={`
+                w-14 h-14 rounded-2xl
+                flex items-center justify-center
+                text-lg font-bold
+                shadow-lg
+                ${
+                  theme === 'dark'
+                    ? 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white'
+                    : 'bg-gradient-to-br from-blue-500 to-indigo-500 text-white'
+                }
+              `}
+            >
+              {(adminProfile?.name || 'A')
+                .charAt(0)
+                .toUpperCase()}
+            </div>
+
+            {/* Online Dot */}
+            <span className="absolute bottom-0 right-0 w-4 h-4 rounded-full border-2 border-[#0f172a] bg-emerald-400"></span>
+          </div>
+
+          {/* Info */}
+          <div className="min-w-0 flex-1">
+
+            <div className="flex items-center gap-2">
+              <h3
+                className={`
+                  text-lg font-bold truncate
+                  ${
+                    theme === 'dark'
+                      ? 'text-white'
+                      : 'text-slate-800'
+                  }
+                `}
+              >
+                {adminProfile?.name || 'Admin'}
+              </h3>
+
+              <span
+                className={`
+                  px-2 py-0.5 rounded-full text-[10px]
+                  font-bold uppercase tracking-wider
+                  ${
+                    theme === 'dark'
+                      ? 'bg-blue-500/15 text-blue-300'
+                      : 'bg-blue-100 text-blue-600'
+                  }
+                `}
+              >
+                Admin
+              </span>
+            </div>
+
+            <p
+              className={`
+                text-sm mt-1 truncate
+                ${
+                  theme === 'dark'
+                    ? 'text-slate-400'
+                    : 'text-slate-500'
+                }
+              `}
+            >
+              {adminProfile?.email || ''}
+            </p>
+
+            <div className="flex items-center gap-2 mt-3">
+              <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></div>
+
+              <span
+                className={`
+                  text-xs font-medium
+                  ${
+                    theme === 'dark'
+                      ? 'text-emerald-300'
+                      : 'text-emerald-600'
+                  }
+                `}
+              >
+                Active Session
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Divider */}
+      <div
+        className={`h-px w-full ${
+          theme === 'dark'
+            ? 'bg-white/5'
+            : 'bg-slate-200'
+        }`}
+      />
+
+      {/* MENU */}
+      <div className="p-3 space-y-2">
+
+        {/* PROFILE */}
+        <button
+          onClick={() => {
+            setShowProfile(false);
+            router.push('/admin/profile');
+          }}
+          className={`
+            group w-full flex items-center justify-between
+            px-4 py-3 rounded-2xl
+            transition-all duration-300
+            active:scale-[0.98]
+            ${
+              theme === 'dark'
+                ? 'hover:bg-white/5 text-slate-200'
+                : 'hover:bg-slate-100 text-slate-700'
+            }
+          `}
+        >
+          <div className="flex items-center gap-3">
+            <div
+              className={`
+                w-10 h-10 rounded-xl
+                flex items-center justify-center
+                transition-all duration-300
+                ${
+                  theme === 'dark'
+                    ? 'bg-blue-500/10 text-blue-300 group-hover:bg-blue-500/20'
+                    : 'bg-blue-50 text-blue-600 group-hover:bg-blue-100'
+                }
+              `}
+            >
+              <User className="h-5 w-5 transition-transform duration-300 group-hover:scale-110" />
+            </div>
+
+            <div className="text-left">
+              <p className="text-sm font-semibold">
+                Profile
+              </p>
+
+              <p
+                className={`
+                  text-xs
+                  ${
+                    theme === 'dark'
+                      ? 'text-slate-500'
+                      : 'text-slate-400'
+                  }
+                `}
+              >
+                Manage admin profile
+              </p>
+            </div>
+          </div>
+
+          <span
+            className={`
+              text-lg transition-all duration-300
+              group-hover:translate-x-1
+              ${
+                theme === 'dark'
+                  ? 'text-slate-500'
+                  : 'text-slate-400'
+              }
+            `}
+          >
+            →
+          </span>
+        </button>
+
+        {/* LOGOUT */}
+        <button
+          onClick={() => {
+            setShowProfile(false);
+            setShowLogoutDialog(true);
+          }}
+          className={`
+            group w-full flex items-center justify-between
+            px-4 py-3 rounded-2xl
+            transition-all duration-300
+            active:scale-[0.98]
+            ${
+              theme === 'dark'
+                ? 'hover:bg-red-500/10 text-red-300'
+                : 'hover:bg-red-50 text-red-600'
+            }
+          `}
+        >
+          <div className="flex items-center gap-3">
+            <div
+              className={`
+                w-10 h-10 rounded-xl
+                flex items-center justify-center
+                transition-all duration-300
+                ${
+                  theme === 'dark'
+                    ? 'bg-red-500/10 text-red-300 group-hover:bg-red-500/20'
+                    : 'bg-red-50 text-red-500 group-hover:bg-red-100'
+                }
+              `}
+            >
+              <LogOut className="h-5 w-5 transition-transform duration-300 group-hover:-translate-x-1" />
+            </div>
+
+            <div className="text-left">
+              <p className="text-sm font-semibold">
+                Logout
+              </p>
+
+              <p
+                className={`
+                  text-xs
+                  ${
+                    theme === 'dark'
+                      ? 'text-slate-500'
+                      : 'text-slate-400'
+                  }
+                `}
+              >
+                End current session
+              </p>
+            </div>
+          </div>
+
+          <span
+            className={`
+              text-lg transition-all duration-300
+              group-hover:translate-x-1
+              ${
+                theme === 'dark'
+                  ? 'text-red-400'
+                  : 'text-red-500'
+              }
+            `}
+          >
+            →
+          </span>
+        </button>
+      </div>
+    </div>
+  </div>
+)}
               </div>
             </div>
           </div>

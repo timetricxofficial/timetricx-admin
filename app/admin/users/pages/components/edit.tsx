@@ -28,7 +28,8 @@ export default function EditUser({ email, close }: any) {
     githubId: '',
     githubUsername: '',
     githubEmail: ''
-  })
+  , internshipJoinDate: '', internshipEndDate: '' })
+
 
   useEffect(() => {
     setShow(true)
@@ -59,6 +60,8 @@ export default function EditUser({ email, close }: any) {
       githubId: data.data?.authProviders?.github?.id || '',
       githubUsername: data.data?.authProviders?.github?.username || '',
       githubEmail: data.data?.authProviders?.github?.email || ''
+      , internshipJoinDate: data.data?.internshipJoinDate ? new Date(data.data.internshipJoinDate).toISOString().slice(0,10) : '',
+      internshipEndDate: data.data?.internshipEndDate ? new Date(data.data.internshipEndDate).toISOString().slice(0,10) : ''
     })
   }
 
@@ -87,7 +90,9 @@ export default function EditUser({ email, close }: any) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         email,
-        ...form
+        ...form,
+        internshipJoinDate: form.internshipJoinDate || undefined,
+        internshipEndDate: form.internshipEndDate || undefined
       })
     })
 
@@ -155,42 +160,70 @@ export default function EditUser({ email, close }: any) {
           >✖</button>
         </div>
 
-        {/* IMAGE */}
+        {/* IMAGE + INTERNSHIP DATES (image left, dates right) */}
         <div style={{
           marginTop: 20,
           display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: 10
+          gap: 20,
+          alignItems: 'center'
         }}>
-          <img
-            src={user?.profilePicture || '/avatar.png'}
-            style={{
-              width: 90,
-              height: 90,
-              borderRadius: '50%',
-              objectFit: 'cover',
-              border: theme === 'dark'
-                ? '2px solid #444'
-                : '2px solid #ddd'
-            }}
-          />
-
-          <label style={{
-            cursor: 'pointer',
-            fontSize: 13,
-            color: '#3b82f6'
-          }}>
-            Change Photo
-            <input
-              hidden
-              type="file"
-              accept="image/*"
-              onChange={(e) =>
-                e.target.files && uploadImage(e.target.files[0])
-              }
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+            <img
+              src={user?.profilePicture || '/avatar.png'}
+              style={{
+                width: 110,
+                height: 110,
+                borderRadius: '12px',
+                objectFit: 'cover',
+                border: theme === 'dark'
+                  ? '2px solid #444'
+                  : '2px solid #ddd'
+              }}
             />
-          </label>
+
+            <label style={{ cursor: 'pointer', fontSize: 13, color: '#3b82f6' }}>
+              Change Photo
+              <input hidden type="file" accept="image/*" onChange={(e) => e.target.files && uploadImage(e.target.files[0])} />
+            </label>
+          </div>
+
+          <div style={{ flex: 1 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div>
+                <label style={{ fontSize: 13, color: theme === 'dark' ? '#bbb' : '#444' }}>Internship Join Date</label>
+                <input
+                  type="date"
+                  value={form.internshipJoinDate}
+                  onChange={(e) => setForm({ ...form, internshipJoinDate: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '8px',
+                    borderRadius: 10,
+                    border: theme === 'dark' ? '1px solid #555' : '1px solid #ddd',
+                    background: theme === 'dark' ? '#1f2937' : '#fff',
+                    color: theme === 'dark' ? '#fff' : '#000'
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: 13, color: theme === 'dark' ? '#bbb' : '#444' }}>Internship End Date</label>
+                <input
+                  type="date"
+                  value={form.internshipEndDate}
+                  onChange={(e) => setForm({ ...form, internshipEndDate: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '8px',
+                    borderRadius: 10,
+                    border: theme === 'dark' ? '1px solid #555' : '1px solid #ddd',
+                    background: theme === 'dark' ? '#1f2937' : '#fff',
+                    color: theme === 'dark' ? '#fff' : '#000'
+                  }}
+                />
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* FORM */}

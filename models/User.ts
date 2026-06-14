@@ -17,6 +17,8 @@ export interface IUser extends Document {
   emailVerificationToken?: string;
   passwordResetToken?: string;
   passwordResetExpires?: Date;
+  internshipJoinDate?: Date; // 👈 added
+  internshipEndDate?: Date; // 👈 added
   lastLogin?: Date;
   authProviders: {
     google?: {
@@ -27,6 +29,7 @@ export interface IUser extends Document {
       id: string;
       username: string;
       email: string;
+      accessToken?: string;
     };
   };
   preferences: {
@@ -93,6 +96,14 @@ const UserSchema: Schema = new Schema(
       required: false,
       default: undefined
     },
+    internshipJoinDate: {   // 👈 added
+      type: Date,
+      default: undefined
+    },
+    internshipEndDate: {     // 👈 added
+      type: Date,
+      default: undefined
+    },
     profilePicture: {
       type: String,
       default: ''
@@ -131,7 +142,8 @@ const UserSchema: Schema = new Schema(
       github: {
         id: String,
         username: String,
-        email: String
+        email: String,
+        accessToken: String
       }
     },
     preferences: {
@@ -177,12 +189,22 @@ const UserSchema: Schema = new Schema(
       twitter: String,
       instagram: String,
       facebook: String
+    },
+    activeSession: {
+      deviceId: { type: String, default: null },
+      lastActive: { type: Date, default: null },
+      checkedIn: { type: Boolean, default: false },
+      deviceOtp: { type: String, default: null },
+      deviceOtpExpiry: { type: Date, default: null }
     }
   },
   {
     timestamps: true
   }
 );
+if (mongoose.models.User) {
+  delete mongoose.models.User;
+}
 
 export const User =
   mongoose.models.User ||

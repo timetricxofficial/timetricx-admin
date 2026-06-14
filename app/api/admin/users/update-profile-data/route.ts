@@ -24,6 +24,9 @@ export async function PUT(request: NextRequest) {
       githubId,
       githubUsername,
       githubEmail
+      ,
+      internshipJoinDate,
+      internshipEndDate
     } = body
 
     if (!email) {
@@ -78,6 +81,22 @@ export async function PUT(request: NextRequest) {
       user.authProviders.github.username = githubUsername
     if (githubEmail)
       user.authProviders.github.email = githubEmail
+
+    /* ---------- INTERNSHIP DATES ---------- */
+    // Expecting dates in 'YYYY-MM-DD' (string) from the frontend. Convert to Date when present.
+    if (internshipJoinDate) {
+      const d = new Date(internshipJoinDate)
+      if (!isNaN(d.getTime())) user.internshipJoinDate = d
+    } else if (internshipJoinDate === '') {
+      user.internshipJoinDate = undefined as any
+    }
+
+    if (internshipEndDate) {
+      const d2 = new Date(internshipEndDate)
+      if (!isNaN(d2.getTime())) user.internshipEndDate = d2
+    } else if (internshipEndDate === '') {
+      user.internshipEndDate = undefined as any
+    }
 
     await user.save()
 
