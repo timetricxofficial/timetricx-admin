@@ -127,10 +127,7 @@ export default function EditProjects({
       return
     }
 
-    if (!form.totalTasks || Number(form.totalTasks) <= 0) {
-      error('Please enter a valid number of total tasks')
-      return
-    }
+    // totalTasks is optional now; no validation required
 
     if (!form.teamEmails || form.teamEmails.length === 0) {
       error('Please add at least one team member')
@@ -150,7 +147,8 @@ export default function EditProjects({
           descriptionDriveLink: form.descriptionDriveLink,
           teamEmails: form.teamEmails,
           tasks: {
-            total: Number(form.totalTasks),
+            // Include total only if provided
+            ...(form.totalTasks ? { total: Number(form.totalTasks) } : {}),
             completed: project.tasks?.completed || 0
           }
         })

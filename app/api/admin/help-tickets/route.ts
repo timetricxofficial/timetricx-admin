@@ -79,7 +79,7 @@ export async function PUT(req: NextRequest) {
     }
 
     const body = await req.json()
-    const { id, adminReply, status } = body
+    const { id, adminReply, message, isEdit, status } = body
 
     if (!id) {
       return NextResponse.json({ success: false, message: 'Ticket ID is required' }, { status: 400 })
@@ -87,26 +87,61 @@ export async function PUT(req: NextRequest) {
 
     await connectDB()
 
-    const updateData: any = {}
-    if (adminReply !== undefined) updateData.adminReply = adminReply
-    if (status !== undefined) {
-      updateData.status = status
-      if (status === 'resolved' || status === 'closed') {
-        updateData.resolvedAt = new Date()
+    // Handle admin reply / message. Support legacy `adminReply` and new `message` field.
+    const replyText = message ?? adminReply
+
+    // If only status update is sent, handle that separately
+    if (replyText === undefined && status !== undefined) {
+      const updateData: any = { status }
+      if (status === 'resolved' || status === 'closed') updateData.resolvedAt = new Date()
+      const updated = await HelpTicket.findByIdAndUpdate(id, updateData, { new: true })
+      if (!updated) return NextResponse.json({ success: false, message: 'Ticket not found' }, { status: 404 })
+      return NextResponse.json({ success: true, message: 'Ticket updated successfully', data: updated })
+    }
+
+    // If replyText provided
+    if (replyText !== undefined) {
+      if (isEdit) {
+        // For edit: load ticket, update last admin message, save
+        const ticket = await HelpTicket.findById(id)
+        if (!ticket) return NextResponse.json({ success: false, message: 'Ticket not found' }, { status: 404 })
+
+        const msgs = ticket.messages || []
+        for (let i = msgs.length - 1; i >= 0; i--) {
+          if (msgs[i].sender === 'admin') {
+            msgs[i].text = replyText
+            msgs[i].createdAt = new Date()
+            break
+          }
+        }
+        ticket.messages = msgs
+        ticket.lastMessage = replyText
+        ticket.lastMessageAt = new Date()
+        ticket.readBy = [] // reset readBy so user gets notified of edit
+        console.log('readBy reset to empty on admin edit:', ticket.readBy)
+        const updated = await ticket.save()
+        return NextResponse.json({ success: true, message: 'Ticket updated successfully', data: updated })
+      } else {
+        // For new reply: use atomic $push and $set
+        const pushObj = { sender: 'admin', text: replyText, createdAt: new Date() }
+        const updateObj: any = {
+          $push: { messages: pushObj },
+          $set: {
+            lastMessage: replyText,
+            lastMessageAt: new Date(),
+            readBy: []
+          }
+        }
+        const updated = await HelpTicket.findByIdAndUpdate(id, updateObj, { new: true })
+        if (!updated) return NextResponse.json({ success: false, message: 'Ticket not found' }, { status: 404 })
+        return NextResponse.json({ success: true, message: 'Ticket updated successfully', data: updated })
       }
     }
 
-    const updated = await HelpTicket.findByIdAndUpdate(id, updateData, { new: true })
+    // No changes provided
+    return NextResponse.json({ success: false, message: 'No update data provided' }, { status: 400 })
 
-    if (!updated) {
-      return NextResponse.json({ success: false, message: 'Ticket not found' }, { status: 404 })
-    }
-
-    return NextResponse.json({
-      success: true,
-      message: 'Ticket updated successfully',
-      data: updated
-    })
+    return NextResponse.json({ success: true, message: 'Ticket updated successfully',  })
   } catch (error) {
     console.error('Error updating help ticket:', error)
     return NextResponse.json({ success: false, message: 'Failed to update ticket' }, { status: 500 })

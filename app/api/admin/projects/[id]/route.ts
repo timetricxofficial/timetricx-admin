@@ -23,14 +23,21 @@ export async function PUT(
       descriptionDriveLink
     } = body
 
-    if (!name || !teamEmails?.length || !tasks?.total) {
+    // Validate required fields; total tasks is now optional
+    if (!name || !teamEmails?.length) {
       return NextResponse.json(
         { success: false, message: 'Missing required fields' },
         { status: 400 }
       )
     }
 
-    const total = Number(tasks.total)
+    // Prepare tasks object, include total only if provided
+    const tasksUpdate: any = {
+      completed: tasks?.completed || 0
+    }
+    if (tasks?.total !== undefined && tasks?.total !== null && tasks?.total !== '') {
+      tasksUpdate.total = Number(tasks.total)
+    }
 
     const updatedProject = await Project.findByIdAndUpdate(
       id,
@@ -42,10 +49,7 @@ export async function PUT(
         deadline,
         teamEmails,
         descriptionDriveLink,
-        tasks: {
-          total,
-          completed: tasks.completed || 0
-        }
+        tasks: tasksUpdate
       },
       { new: true }
     )

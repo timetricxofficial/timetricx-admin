@@ -43,11 +43,13 @@ interface HelpTicket {
   userEmail: string
   userName: string
   subject: string
-  message: string
+  message?: string
+  messages?: { sender: 'user' | 'admin'; text: string; createdAt: string }[]
   priority: 'low' | 'medium' | 'high'
   category: 'technical' | 'attendance' | 'account' | 'other'
   status: 'open' | 'in_progress' | 'resolved' | 'closed'
-  adminReply?: string
+  lastMessage?: string
+  lastMessageAt?: string
   resolvedAt?: string
   createdAt: string
   updatedAt: string
@@ -555,6 +557,12 @@ function HelpTicketsTab() {
   const [replyingId, setReplyingId] = useState<string | null>(null)
   const [replyText, setReplyText] = useState('')
   const [editingReplyId, setEditingReplyId] = useState<string | null>(null)
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false)
+  const emojiPickerRef = useRef<HTMLDivElement | null>(null)
+  const emojiButtonRef = useRef<HTMLButtonElement | null>(null)
+
+  const emojiString = `😀 😃 😄 😁 😆 😅 😂 🤣 🥲 ☺️ 😊 😇 🙂 🙃 😉 😌 😍 🥰 😘 😗 😙 😚 😋 😛 😝 😜 🤪 🤨 🧐 🤓 😎 🥸 🤩 🥳 😏 😒 😞 😔 😟 😕 🙁 ☹️ 😣 😖 😫 😩 🥺 😢 😭 😤 😠 😡 🤬 🤯 😳 🥵 🥶 😱 😨 😰 😥 😓 🤗 🤭 🫣 🫠 🫡 🥴 😵 🤐 😬 🙄 😴 🤤 🤢 🤮 🤧 😷 🤒 🤕 🤑 😈 👿 👹 👺 💀 ☠️ 👻 👽 🤖 🎃 😺 😸 😹 😻 😼 😽 🙀 😿 😾 😹 `
+  const emojiList = emojiString.split(/\s+/).filter(Boolean)
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(true)
   const loadingRef = useRef(false)
@@ -618,18 +626,20 @@ function HelpTicketsTab() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           id,
-          adminReply: replyText,
-          status: isEdit ? undefined : 'resolved'
+          message: replyText,
+          isEdit: isEdit
         })
       })
       const data = await res.json()
       if (data.success) {
         success(isEdit ? 'Reply updated successfully' : 'Reply sent successfully')
-        setTickets(prev => prev.map(t =>
-          t._id === id ? { ...t, adminReply: replyText, ...(isEdit ? {} : { status: 'resolved', resolvedAt: new Date().toISOString() }) } : t
-        ))
+        // Replace ticket with server response to keep messages in sync
+        setTickets(prev => prev.map(t => t._id === id ? data.data : t))
+        // Close the reply form after sending (but clear editing state if it was an edit)
+        if (isEdit) {
+          setEditingReplyId(null)
+        }
         setReplyingId(null)
-        setEditingReplyId(null)
         setReplyText('')
       } else {
         error(data.message || 'Failed to send reply')
@@ -638,6 +648,20 @@ function HelpTicketsTab() {
       error('Error sending reply')
     }
   }
+
+  // Close emoji picker when clicking outside
+  useEffect(() => {
+    function handleDocClick(e: MouseEvent) {
+      const target = e.target as Node
+      if (showEmojiPicker) {
+        if (emojiPickerRef.current && !emojiPickerRef.current.contains(target) && emojiButtonRef.current && !emojiButtonRef.current.contains(target)) {
+          setShowEmojiPicker(false)
+        }
+      }
+    }
+    document.addEventListener('click', handleDocClick)
+    return () => document.removeEventListener('click', handleDocClick)
+  }, [showEmojiPicker])
 
   const handleDeleteTicket = async (id: string) => {
     const result = await Swal.fire({
@@ -673,7 +697,9 @@ function HelpTicketsTab() {
 
   const startEditReply = (ticket: HelpTicket) => {
     setEditingReplyId(ticket._id)
-    setReplyText(ticket.adminReply || '')
+    // Find last admin message if present
+    const lastAdmin = ticket.messages?.slice().reverse().find(m => m.sender === 'admin')
+    setReplyText(lastAdmin?.text || ticket.message || '')
   }
 
   const handleStatusChange = async (id: string, newStatus: HelpTicket['status']) => {
@@ -776,42 +802,28 @@ function HelpTicketsTab() {
             </div>
           </div>
 
-          {/* MESSAGE */}
+          {/* MESSAGES THREAD */}
           <div className={`p-4 rounded-xl mb-4 ${theme === 'dark' ? 'bg-gray-800/50' : 'bg-gray-50'}`}>
             <p className={`text-sm mb-2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
               Category: <span className="capitalize">{ticket.category}</span>
             </p>
-            <p className={`${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'}`}>
-              {ticket.message}
-            </p>
-          </div>
-
-          {/* ADMIN REPLY */}
-          {ticket.adminReply && editingReplyId !== ticket._id && (
-            <div className={`p-4 rounded-xl mb-4 border-l-4 border-blue-500 ${
-              theme === 'dark' ? 'bg-blue-500/10' : 'bg-blue-50'
-            }`}>
-              <div className="flex items-center justify-between mb-1">
-                <p className={`text-sm font-medium ${theme === 'dark' ? 'text-blue-400' : 'text-blue-600'}`}>
-                  Admin Reply:
-                </p>
-                <button
-                  onClick={() => startEditReply(ticket)}
-                  className="text-xs px-2 py-1 rounded bg-blue-600/20 text-blue-600 hover:bg-blue-600/30 transition-colors"
-                >
-                  Edit Reply
-                </button>
-              </div>
-              <p className={theme === 'dark' ? 'text-gray-200' : 'text-gray-700'}>
-                {ticket.adminReply}
-              </p>
-              {ticket.resolvedAt && (
-                <p className={`text-xs mt-2 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>
-                  Resolved on: {new Date(ticket.resolvedAt).toLocaleString('en-IN')}
+            <div className="space-y-3">
+              {(ticket.messages && ticket.messages.length > 0) ? (
+                ticket.messages.map((m, idx) => (
+                  <div key={idx} className={`p-3 rounded-lg ${m.sender === 'admin' ? 'bg-blue-50 text-blue-900' : theme === 'dark' ? 'bg-gray-900 text-gray-200' : 'bg-white text-gray-800'}`}>
+                    <div className="text-xs opacity-70 mb-1">{m.sender === 'admin' ? 'Admin' : ticket.userName || ticket.userEmail} • {new Date(m.createdAt).toLocaleString('en-IN')}</div>
+                    <div className="text-sm">{m.text}</div>
+                  </div>
+                ))
+              ) : (
+                <p className={`${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'}`}>
+                  {ticket.message || 'No message available.'}
                 </p>
               )}
             </div>
-          )}
+          </div>
+
+          {/* Admin replies are shown inline in the messages thread above. */}
 
           {/* ACTIONS */}
           <div className="flex flex-wrap gap-2">
@@ -875,7 +887,41 @@ function HelpTicketsTab() {
                     : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
                 }`}
               />
-              <div className="flex gap-2 mt-3">
+              <div className="flex items-center gap-2 mt-3">
+                <div className="relative">
+                  <button
+                    ref={emojiButtonRef}
+                    onClick={() => setShowEmojiPicker(s => !s)}
+                    type="button"
+                    className="px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 flex items-center"
+                    title="Open emoji picker"
+                  >
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <circle cx="12" cy="12" r="9" stroke="#374151" strokeWidth="1.2" fill="#f8fafc" />
+                      <path d="M8 10h.01" stroke="#374151" strokeWidth="1.5" strokeLinecap="round"/>
+                      <path d="M16 10h.01" stroke="#374151" strokeWidth="1.5" strokeLinecap="round"/>
+                      <path d="M8 15c1-1 3-1 4 0" stroke="#374151" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </button>
+                  {/* favorite toolbar removed; only full picker is available */}
+                  {showEmojiPicker && (
+                    <div ref={emojiPickerRef} className="absolute z-50 mt-2 w-64 max-h-40 overflow-auto p-2 bg-white border rounded-lg shadow-lg">
+                      <div className="grid grid-cols-8 gap-1">
+                        {emojiList.map((e, i) => (
+                          <button
+                            key={i}
+                            type="button"
+                            onClick={() => { setReplyText(prev => prev + e); setShowEmojiPicker(false); }}
+                            className="p-1 text-lg hover:bg-gray-100 rounded"
+                          >
+                            {e}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 <button
                   onClick={() => handleReply(ticket._id, false)}
                   className="px-4 py-2 rounded-lg bg-green-600 text-white text-sm font-medium hover:bg-green-700 transition-colors"
@@ -903,7 +949,41 @@ function HelpTicketsTab() {
                     : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
                 }`}
               />
-              <div className="flex gap-2 mt-3">
+              <div className="flex items-center gap-2 mt-3">
+                <div className="relative">
+                  <button
+                    ref={emojiButtonRef}
+                    onClick={() => setShowEmojiPicker(s => !s)}
+                    type="button"
+                    className="px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 flex items-center"
+                    title="Open emoji picker"
+                  >
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <circle cx="12" cy="12" r="9" stroke="#374151" strokeWidth="1.2" fill="#f8fafc" />
+                      <path d="M8 10h.01" stroke="#374151" strokeWidth="1.5" strokeLinecap="round"/>
+                      <path d="M16 10h.01" stroke="#374151" strokeWidth="1.5" strokeLinecap="round"/>
+                      <path d="M8 15c1-1 3-1 4 0" stroke="#374151" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </button>
+                  {/* favorite toolbar removed; only full picker is available */}
+                  {showEmojiPicker && (
+                    <div ref={emojiPickerRef} className="absolute z-50 mt-2 w-64 max-h-40 overflow-auto p-2 bg-white border rounded-lg shadow-lg">
+                      <div className="grid grid-cols-8 gap-1">
+                        {emojiList.map((e, i) => (
+                          <button
+                            key={i}
+                            type="button"
+                            onClick={() => { setReplyText(prev => prev + e); setShowEmojiPicker(false); }}
+                            className="p-1 text-lg hover:bg-gray-100 rounded"
+                          >
+                            {e}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 <button
                   onClick={() => handleReply(ticket._id, true)}
                   className="px-4 py-2 rounded-lg bg-orange-600 text-white text-sm font-medium hover:bg-orange-700 transition-colors"
