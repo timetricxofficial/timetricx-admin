@@ -55,7 +55,7 @@ export default function Sidebar() {
           fixed 
           left-4 
           top-10     /* navbar ke niche */
-          h-[720px] 
+          h-[760px] 
           w-24
           ${theme === 'dark' ? 'bg-[#1a1a1a]' : 'bg-[#f3f2ff]'} 
           flex flex-col items-center 
@@ -67,7 +67,7 @@ export default function Sidebar() {
 
 
         {/* Menu */}
-        <div className="flex flex-col gap-3 mt-30 flex-1">
+        <div className="flex flex-col gap-3 mt-36 flex-1">
           {menu.map((item) => {
             const isActive = pathname === item.path
 
